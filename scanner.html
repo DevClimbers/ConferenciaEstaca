@@ -409,6 +409,110 @@
     #toastSync.visible {
       transform: translateX(-50%) translateY(0);
     }
+
+    /* ============================================================
+       BOTÓN FLOTANTE "SIN BOLETO"
+       ============================================================ */
+    #btnSinBoleto {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--gold);
+      color: #111;
+      border: none;
+      border-radius: 3rem;
+      padding: 0.9rem 2rem;
+      font-size: 1.05rem;
+      font-weight: 800;
+      cursor: pointer;
+      z-index: 200;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      letter-spacing: 0.02em;
+      transition: transform 0.15s, box-shadow 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #btnSinBoleto:active {
+      transform: translateX(-50%) scale(0.96);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* ============================================================
+       OVERLAY: SELECCIÓN DE BARRIO (sin boleto)
+       ============================================================ */
+    #overlaySinBoleto {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 15, 40, 0.97);
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      padding: 1.25rem 1rem 2rem;
+      overflow-y: auto;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    #overlaySinBoleto.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+    #overlaySinBoleto h2 {
+      text-align: center;
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 0.3rem;
+    }
+    #overlaySinBoleto p {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-bottom: 1.25rem;
+    }
+    .unidades-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      flex: 1;
+    }
+    .unidad-btn {
+      border: none;
+      border-radius: 1rem;
+      padding: 1.1rem 0.75rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      text-align: center;
+      line-height: 1.3;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.12s, filter 0.12s;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+    }
+    .unidad-btn:active {
+      transform: scale(0.94);
+      filter: brightness(1.2);
+    }
+    /* Rama Maneadero ocupa fila completa si es el 11vo */
+    .unidad-btn.full-row {
+      grid-column: 1 / -1;
+    }
+    #btnCancelarSinBoleto {
+      margin-top: 1rem;
+      background: transparent;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 3rem;
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.8rem;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
   </style>
 </head>
 <body>
@@ -469,6 +573,23 @@
       <div id="contadorDetalle"></div>
     </div>
 
+    <!-- Botón flotante para registrar sin boleto -->
+    <button id="btnSinBoleto" onclick="mostrarSinBoleto()">
+      ➕ Sin boleto
+    </button>
+
+  </div>
+
+  <!-- ============================================================
+       OVERLAY: SELECCIÓN DE BARRIO (registro sin boleto)
+       ============================================================ -->
+  <div id="overlaySinBoleto">
+    <h2>¿De qué barrio es?</h2>
+    <p>Selecciona la unidad para registrar una visita sin boleto</p>
+    <div class="unidades-grid" id="unidadesGrid">
+      <!-- Se genera dinámicamente desde UNIDADES en config.js -->
+    </div>
+    <button id="btnCancelarSinBoleto" onclick="ocultarSinBoleto()">Cancelar</button>
   </div>
 
   <!-- ============================================================
@@ -921,6 +1042,92 @@
       lanzarApp();
     }
 
+    /* ============================================================
+       SIN BOLETO — REGISTRO MANUAL POR BARRIO
+       ============================================================ */
+
+    // Construir botones de unidades en el grid (se llama una vez al iniciar)
+    function construirGridUnidades() {
+      const grid = document.getElementById('unidadesGrid');
+      UNIDADES.forEach((u, i) => {
+        const btn = document.createElement('button');
+        // Si es el último y el total de unidades es impar, ocupar fila completa
+        const esUltimo = i === UNIDADES.length - 1 && UNIDADES.length % 2 !== 0;
+        btn.className = 'unidad-btn' + (esUltimo ? ' full-row' : '');
+        btn.style.background = u.color;
+        btn.textContent = u.nombre;
+        btn.addEventListener('click', () => registrarSinBoleto(u.id));
+        grid.appendChild(btn);
+      });
+    }
+
+    // Mostrar overlay y pausar cámara
+    function mostrarSinBoleto() {
+      if (html5QrCode) { try { html5QrCode.pause(); } catch(e) {} }
+      document.getElementById('overlaySinBoleto').classList.add('visible');
+    }
+
+    // Ocultar overlay y reanudar cámara
+    function ocultarSinBoleto() {
+      document.getElementById('overlaySinBoleto').classList.remove('visible');
+      if (html5QrCode) { try { html5QrCode.resume(); } catch(e) {} }
+    }
+
+    // Registrar una visita sin boleto para la unidad seleccionada
+    async function registrarSinBoleto(unidadId) {
+      const unidad = UNIDADES.find(u => u.id === unidadId);
+      if (!unidad) return;
+
+      // Ocultar overlay inmediatamente para dar feedback rápido
+      document.getElementById('overlaySinBoleto').classList.remove('visible');
+
+      // Código único: BAR01-V123456 (V = visita, sufijo de timestamp)
+      const sufijo = String(Date.now()).slice(-6);
+      const codigo = `${unidad.id}-V${sufijo}`;
+      const ahora  = new Date().toISOString();
+
+      try {
+        // 1. Insertar el código en boletos (necesario por la FK en registros)
+        await db.from('boletos').insert({ codigo, unidad_id: unidad.id });
+
+        // 2. Insertar el registro de asistencia
+        const registro = {
+          codigo,
+          unidad_id:    unidad.id,
+          escaneado_en: ahora,
+          dispositivo:  dispositivoNombre
+        };
+
+        if (navigator.onLine) {
+          const { error } = await db.from('registros').insert(registro);
+          if (error) throw error;
+          totalRegistrados++;
+          updateCounter();
+        } else {
+          // Sin conexión: guardar en cola local para sincronizar después
+          const queue = getOfflineQueue();
+          queue.push(registro);
+          saveOfflineQueue(queue);
+        }
+      } catch (err) {
+        // Loguear error pero no interrumpir el flujo del escáner
+        console.error('Error al registrar visita sin boleto:', err);
+      }
+
+      // Mostrar pantalla de éxito igual que un boleto normal
+      document.getElementById('exitoUnidad').textContent = unidad.nombre;
+      document.getElementById('exitoBoleto').textContent = 'Visita sin boleto';
+      document.getElementById('exitoHora').textContent   = formatHora(ahora);
+      document.getElementById('exitoNota').textContent   =
+        navigator.onLine ? '' : '⚠ Sin conexión — guardado localmente';
+
+      playBeep(880, 0.2, 'sine');
+      mostrarPantalla('pantallaExito', 'exitoCountdown', 2000, null);
+
+      // Reanudar cámara para el siguiente escaneo
+      if (html5QrCode) { try { html5QrCode.resume(); } catch(e) {} }
+    }
+
     function lanzarApp() {
       // Ocultar modal, mostrar app
       document.getElementById('modalDispositivo').classList.add('oculto');
@@ -928,6 +1135,9 @@
 
       // Mostrar nombre en barra
       document.getElementById('nombreDispositivoBtn').textContent = dispositivoNombre;
+
+      // Construir grid de unidades para el registro sin boleto
+      construirGridUnidades();
 
       // Estado offline inicial
       actualizarIndicadorOffline();

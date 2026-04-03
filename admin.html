@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Administrador — Conferencia de Estaca</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* ---- Layout principal ---- */
+    .main-content {
+      padding: 2rem 0 4rem;
+    }
+
+    /* ---- Resumen general ---- */
+    .summary-alert {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      color: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow);
+    }
+
+    .summary-alert .summary-numbers {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .summary-stat {
+      text-align: center;
+    }
+
+    .summary-stat .num {
+      display: block;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--gold);
+      line-height: 1;
+    }
+
+    .summary-stat .lbl {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.65);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .summary-alert .summary-progress {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .summary-alert .summary-progress .progress-label {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.75);
+      margin-bottom: 0.4rem;
+    }
+
+    /* ---- Barra de acciones globales ---- */
+    .actions-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ---- Tabla de unidades ---- */
+    .unit-color-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+      border: 2px solid rgba(0,0,0,0.08);
+    }
+
+    .pct-bar-wrap {
+      background: var(--gray-200);
+      border-radius: 999px;
+      height: 7px;
+      width: 80px;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    .pct-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--navy), var(--gold));
+      transition: width 0.5s ease;
+    }
+
+    .action-btns {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: nowrap;
+    }
+
+    /* ---- Modal de contraseña ---- */
+    #modalAuth {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 28, 62, 0.92);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9000;
+      padding: 1rem;
+    }
+
+    .auth-box {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+
+    .auth-box .auth-icon {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--navy), var(--navy-light));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      margin: 0 auto 1.25rem;
+    }
+
+    .auth-box h2 {
+      color: var(--navy);
+      margin-bottom: 0.4rem;
+      font-size: 1.3rem;
+    }
+
+    .auth-box p {
+      color: var(--gray-600);
+      font-size: 0.87rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .auth-error {
+      background: #FEE2E2;
+      color: #991B1B;
+      border-radius: var(--radius);
+      padding: 0.6rem 0.9rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 0.75rem;
+      display: none;
+    }
+
+    /* ---- Panel de progreso de generación ---- */
+    #panelProgreso {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+
+    .progreso-log {
+      background: var(--gray-100);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      max-height: 180px;
+      overflow-y: auto;
+      font-size: 0.82rem;
+      font-family: 'Courier New', monospace;
+      color: var(--navy);
+      margin-top: 0.75rem;
+    }
+
+    .progreso-log p {
+      color: var(--navy);
+      margin: 0.2rem 0;
+    }
+
+    .progreso-log .log-ok { color: #166534; }
+    .progreso-log .log-err { color: #991B1B; }
+    .progreso-log .log-info { color: var(--gray-600); }
+
+    /* ---- Modal de boletos de unidad ---- */
+    #modalBoletos {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 800;
+      padding: 1rem;
+      display: none;
+    }
+
+    .boletos-modal-inner {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 560px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .boletos-modal-inner h3 {
+      margin-bottom: 1rem;
+      color: var(--navy);
+    }
+
+    .boletos-list-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.5rem;
+      overflow-y: auto;
+      flex: 1;
+      padding-right: 4px;
+    }
+
+    .boleto-chip {
+      background: var(--gray-100);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 0.45rem 0.7rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .boleto-chip.registrado {
+      background: #DCFCE7;
+      border-color: #86EFAC;
+      color: #166534;
+    }
+
+    /* ---- Canvas QR oculto ---- */
+    #qrCanvas {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      visibility: hidden;
+    }
+
+    /* ---- Toast container (si no está en styles.css activo) ---- */
+    #toastContainer {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      z-index: 9999;
+    }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 768px) {
+      .action-btns { flex-wrap: wrap; }
+      .summary-alert { flex-direction: column; text-align: center; }
+      .summary-numbers { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       MODAL DE AUTENTICACIÓN
+       ============================================================ -->
+  <div id="modalAuth">
+    <div class="auth-box">
+      <div class="auth-icon">🔐</div>
+      <h2>Acceso Restringido</h2>
+      <p>Ingresa la contraseña de administrador para continuar.</p>
+      <div class="form-group">
+        <label for="inputPassword">Contraseña</label>
+        <input type="password" id="inputPassword" placeholder="••••••••••••"
+               autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary w-full btn-lg" id="btnLogin">
+        Entrar al panel
+      </button>
+      <div class="auth-error" id="authError">
+        Contraseña incorrecta. Intenta de nuevo.
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       NAVBAR
+       ============================================================ -->
+  <nav class="navbar">
+    <a href="index.html" class="navbar-back">
+      ← Inicio
+    </a>
+    <div class="navbar-brand">
+      <div class="navbar-logo">⚙️</div>
+      <div>
+        <div class="navbar-title">Administrador</div>
+        <div class="navbar-subtitle">Conferencia de Estaca</div>
+      </div>
+    </div>
+    <button class="btn btn-outline btn-sm" id="btnCerrarSesion" style="color:var(--gold);border-color:var(--gold);">
+      Cerrar sesión
+    </button>
+  </nav>
+
+  <!-- ============================================================
+       HEADER DE PÁGINA
+       ============================================================ -->
+  <div class="page-header">
+    <h1 id="headerNombreEstaca">Estaca Ensenada México</h1>
+    <p id="headerSesion">Sesión General — Domingo 24 de mayo de 2026</p>
+  </div>
+
+  <!-- ============================================================
+       CONTENIDO PRINCIPAL
+       ============================================================ -->
+  <main class="main-content">
+    <div class="container">
+
+      <!-- Resumen general -->
+      <div class="summary-alert" id="summaryAlert">
+        <div class="summary-numbers">
+          <div class="summary-stat">
+            <span class="num" id="totalBoletos">0</span>
+            <span class="lbl">Boletos / 1,100</span>
+          </div>
+          <div class="summary-stat">
+            <span class="num" id="totalRegistros">0</span>
+            <span class="lbl">Registrados</span>
+          </div>
+          <div class="summary-stat">
+            <span class="num" id="totalPct">0%</span>
+            <span class="lbl">Asistencia</span>
+          </div>
+        </div>
+        <div class="summary-progress">
+          <div class="progress-label" id="progressLabel">0 boletos generados</div>
+          <div class="progress-bar-wrap" style="height:12px;">
+            <div class="progress-bar-fill" id="progressFill" style="width:0%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Acciones globales -->
+      <div class="actions-bar">
+        <button class="btn btn-gold btn-lg" id="btnGenerarTodos">
+          ⚡ Generar boletos para todas las unidades
+        </button>
+        <button class="btn btn-outline" id="btnBoletoPrueba" onclick="boletoPrueba()" title="Genera 1 boleto de muestra para probar el diseño y el escáner">
+          🧪 Boleto de prueba
+        </button>
+        <button class="btn btn-outline" id="btnExportarCSV">
+          📥 Exportar CSV completo
+        </button>
+        <button class="btn btn-outline btn-sm" id="btnRefresh" title="Actualizar datos">
+          🔄 Actualizar
+        </button>
+      </div>
+
+      <!-- Panel de progreso de generación -->
+      <div id="panelProgreso">
+        <div class="card-header" style="border-bottom:none; margin-bottom:0.5rem; padding-bottom:0;">
+          <span class="card-title">⏳ Generando boletos…</span>
+          <span id="progresoTexto" style="font-size:0.85rem; color:var(--gray-600);"></span>
+        </div>
+        <div class="progress-bar-wrap" style="margin-bottom:0.5rem;">
+          <div class="progress-bar-fill" id="genProgressFill" style="width:0%;"></div>
+        </div>
+        <div class="progreso-log" id="progresoLog"></div>
+      </div>
+
+      <!-- Tabla de unidades -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📋 Unidades de la Estaca</span>
+          <span style="font-size:0.8rem; color:var(--gray-400);">
+            <span id="tablaCargando">Cargando…</span>
+          </span>
+        </div>
+        <div class="table-wrap">
+          <table id="tablaUnidades">
+            <thead>
+              <tr>
+                <th style="width:40px;">Color</th>
+                <th>Unidad</th>
+                <th style="text-align:center;">Cupo</th>
+                <th style="text-align:center;">Boletos</th>
+                <th style="text-align:center;">Registrados</th>
+                <th style="text-align:center;">% Asistencia</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaBody">
+              <!-- Filas generadas por JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ============================================================
+       MODAL VER BOLETOS
+       ============================================================ -->
+  <div id="modalBoletos">
+    <div class="boletos-modal-inner">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 id="modalBoletosTitle">Boletos</h3>
+        <button class="btn btn-outline btn-sm" id="btnCerrarModalBoletos">✕ Cerrar</button>
+      </div>
+      <div class="boletos-list-grid" id="boletosListGrid">
+        <!-- Chips de boletos -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas oculto para generación de QR -->
+  <div id="qrCanvas"></div>
+
+  <!-- Contenedor de toasts -->
+  <div id="toastContainer"></div>
+
+  <!-- ============================================================
+       SCRIPTS
+       ============================================================ -->
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+  // ============================================================
+  // INICIALIZACIÓN DE SUPABASE
+  // ============================================================
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+  // ============================================================
+  // ESTADO DE LA APLICACIÓN
+  // ============================================================
+  let conteos = {}; // { unidadId: { boletos: N, registros: N } }
+
+  // ============================================================
+  // AUTENTICACIÓN
+  // ============================================================
+  const modalAuth        = document.getElementById('modalAuth');
+  const inputPassword    = document.getElementById('inputPassword');
+  const btnLogin         = document.getElementById('btnLogin');
+  const authError        = document.getElementById('authError');
+  const btnCerrarSesion  = document.getElementById('btnCerrarSesion');
+
+  function verificarAuth() {
+    const autenticado = sessionStorage.getItem('adminAuth') === 'ok';
+    if (autenticado) {
+      modalAuth.style.display = 'none';
+      iniciarApp();
+    } else {
+      modalAuth.style.display = 'flex';
+    }
+  }
+
+  function intentarLogin() {
+    const pass = inputPassword.value.trim();
+    if (pass === ADMIN_PASSWORD) {
+      sessionStorage.setItem('adminAuth', 'ok');
+      modalAuth.style.display = 'none';
+      authError.style.display = 'none';
+      iniciarApp();
+    } else {
+      authError.style.display = 'block';
+      inputPassword.value = '';
+      inputPassword.focus();
+    }
+  }
+
+  btnLogin.addEventListener('click', intentarLogin);
+  inputPassword.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') intentarLogin();
+  });
+
+  btnCerrarSesion.addEventListener('click', () => {
+    sessionStorage.removeItem('adminAuth');
+    location.reload();
+  });
+
+  // ============================================================
+  // INICIALIZACIÓN DE LA APP
+  // ============================================================
+  function iniciarApp() {
+    // Rellenar header con datos del evento
+    document.getElementById('headerNombreEstaca').textContent = CONFIG_EVENTO.nombreEstaca;
+    document.getElementById('headerSesion').textContent =
+      `${CONFIG_EVENTO.nombreSesion} — ${CONFIG_EVENTO.fecha}`;
+
+    cargarDatos();
+  }
+
+  // ============================================================
+  // CARGA DE DATOS DESDE SUPABASE
+  // ============================================================
+  async function cargarDatos() {
+    document.getElementById('tablaCargando').textContent = 'Cargando…';
+    try {
+      // Obtener conteos de boletos por unidad
+      const { data: boletosData, error: errBoletos } = await db
+        .from('boletos')
+        .select('unidad_id');
+
+      if (errBoletos) throw errBoletos;
+
+      // Obtener conteos de registros por unidad
+      const { data: registrosData, error: errRegistros } = await db
+        .from('registros')
+        .select('unidad_id');
+
+      if (errRegistros) throw errRegistros;
+
+      // Construir conteos
+      conteos = {};
+      UNIDADES.forEach(u => {
+        conteos[u.id] = { boletos: 0, registros: 0 };
+      });
+
+      boletosData.forEach(b => {
+        if (conteos[b.unidad_id] !== undefined) {
+          conteos[b.unidad_id].boletos++;
+        }
+      });
+
+      registrosData.forEach(r => {
+        if (conteos[r.unidad_id] !== undefined) {
+          conteos[r.unidad_id].registros++;
+        }
+      });
+
+      renderTabla();
+      actualizarResumen();
+      document.getElementById('tablaCargando').textContent = '';
+    } catch (err) {
+      console.error('Error cargando datos:', err);
+      document.getElementById('tablaCargando').textContent = 'Error al cargar';
+      showToast('Error al cargar datos: ' + (err.message || err), 'error');
+    }
+  }
+
+  // ============================================================
+  // RENDER DE LA TABLA
+  // ============================================================
+  function renderTabla() {
+    const tbody = document.getElementById('tablaBody');
+    tbody.innerHTML = '';
+
+    UNIDADES.forEach(u => {
+      const c = conteos[u.id] || { boletos: 0, registros: 0 };
+      const tieneboletos = c.boletos > 0;
+      const pct = u.cupo > 0 ? Math.round((c.registros / u.cupo) * 100) : 0;
+      const pctClamp = Math.min(pct, 100);
+
+      let badgeClass = 'badge-danger';
+      if (pct >= 80) badgeClass = 'badge-success';
+      else if (pct >= 40) badgeClass = 'badge-warning';
+
+      const tr = document.createElement('tr');
+      tr.id = `fila-${u.id}`;
+      tr.innerHTML = `
+        <td style="text-align:center;">
+          <span class="unit-color-dot" style="background:${u.color};"></span>
+        </td>
+        <td>
+          <div class="unidad-chip">
+            <strong>${u.nombre}</strong>
+            <span style="font-size:0.72rem; color:var(--gray-400); font-weight:400;">${u.id}</span>
+          </div>
+        </td>
+        <td style="text-align:center; font-weight:600;">${u.cupo}</td>
+        <td style="text-align:center;">
+          <span id="cnt-boletos-${u.id}" style="font-weight:700; color:${tieneboletos ? 'var(--navy)' : 'var(--gray-400)'};">
+            ${c.boletos}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <span id="cnt-registros-${u.id}" style="font-weight:700;">${c.registros}</span>
+        </td>
+        <td style="text-align:center; white-space:nowrap;">
+          <span class="pct-bar-wrap">
+            <span class="pct-bar-fill" id="pct-bar-${u.id}" style="width:${pctClamp}%; background:${u.color};"></span>
+          </span>
+          <span class="badge ${badgeClass}" id="pct-badge-${u.id}">${pct}%</span>
+        </td>
+        <td>
+          <div class="action-btns">
+            <button
+              class="btn btn-primary btn-sm"
+              id="btn-generar-${u.id}"
+              onclick="generarBoletosUnidad('${u.id}')"
+              ${tieneboletos ? 'disabled title="Ya tiene boletos generados"' : ''}
+            >
+              🎫 Generar
+            </button>
+            <button
+              class="btn btn-gold btn-sm"
+              id="btn-pdf-${u.id}"
+              onclick="imprimirPDF('${u.id}')"
+              ${!tieneboletos ? 'disabled title="Primero genera los boletos"' : ''}
+            >
+              🖨️ PDF
+            </button>
+            <button
+              class="btn btn-outline btn-sm"
+              id="btn-ver-${u.id}"
+              onclick="verBoletos('${u.id}')"
+              ${!tieneboletos ? 'disabled title="Sin boletos aún"' : ''}
+            >
+              👁️ Ver
+            </button>
+          </div>
+          <div id="progreso-fila-${u.id}" style="font-size:0.78rem; color:var(--gray-600); margin-top:0.3rem; display:none;"></div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ============================================================
+  // ACTUALIZAR RESUMEN GLOBAL
+  // ============================================================
+  function actualizarResumen() {
+    let totalB = 0, totalR = 0;
+    UNIDADES.forEach(u => {
+      totalB += (conteos[u.id] || {}).boletos || 0;
+      totalR += (conteos[u.id] || {}).registros || 0;
+    });
+
+    const totalCupo = UNIDADES.reduce((s, u) => s + u.cupo, 0);
+    const pct = totalCupo > 0 ? Math.round((totalR / totalCupo) * 100) : 0;
+    const pctBoletos = totalCupo > 0 ? Math.round((totalB / totalCupo) * 100) : 0;
+
+    document.getElementById('totalBoletos').textContent = totalB;
+    document.getElementById('totalRegistros').textContent = totalR;
+    document.getElementById('totalPct').textContent = pct + '%';
+    document.getElementById('progressLabel').textContent =
+      `${totalB}/${totalCupo} boletos generados · ${totalR} registrados`;
+    document.getElementById('progressFill').style.width = pctBoletos + '%';
+  }
+
+  // ============================================================
+  // GENERAR BOLETOS — TODAS LAS UNIDADES
+  // ============================================================
+  document.getElementById('btnGenerarTodos').addEventListener('click', async () => {
+    // Verificar si ya existen boletos en alguna unidad
+    const unidadesSinBoletos = UNIDADES.filter(u => !(conteos[u.id] || {}).boletos);
+    if (unidadesSinBoletos.length === 0) {
+      showToast('Todas las unidades ya tienen boletos generados.', 'error');
+      return;
+    }
+
+    const confirmado = confirm(
+      `¿Confirmas generar boletos para ${unidadesSinBoletos.length} unidad(es)?\n\n` +
+      unidadesSinBoletos.map(u => `• ${u.nombre}`).join('\n') +
+      `\n\nEsto insertará hasta ${unidadesSinBoletos.length * 100} registros en la base de datos.`
+    );
+    if (!confirmado) return;
+
+    // Mostrar panel de progreso
+    const panel = document.getElementById('panelProgreso');
+    panel.style.display = 'block';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    limpiarLog();
+
+    // Deshabilitar botón mientras corre
+    document.getElementById('btnGenerarTodos').disabled = true;
+
+    let completadas = 0;
+    const total = unidadesSinBoletos.length;
+
+    for (const u of unidadesSinBoletos) {
+      agregarLog(`Generando ${u.id} (${u.nombre})…`, 'info');
+      actualizarGenProgreso(completadas, total, `${u.nombre}…`);
+
+      const resultado = await generarBoletosParaUnidad(u);
+      if (resultado.ok) {
+        agregarLog(`✓ ${u.id} — ${resultado.cantidad} boletos generados`, 'ok');
+        conteos[u.id] = conteos[u.id] || {};
+        conteos[u.id].boletos = resultado.cantidad;
+      } else {
+        agregarLog(`✗ ${u.id} — Error: ${resultado.error}`, 'err');
+      }
+      completadas++;
+      actualizarGenProgreso(completadas, total, completadas < total ? UNIDADES[completadas]?.nombre || '' : 'Listo');
+    }
+
+    agregarLog('─────────────────────────────────────', 'info');
+    agregarLog(`Proceso completado: ${completadas}/${total} unidades procesadas.`, 'ok');
+
+    document.getElementById('btnGenerarTodos').disabled = false;
+    renderTabla();
+    actualizarResumen();
+    showToast(`Boletos generados para ${completadas} unidad(es).`, 'success');
+
+    // Ocultar panel tras 8 segundos
+    setTimeout(() => { panel.style.display = 'none'; }, 8000);
+  });
+
+  // ============================================================
+  // GENERAR BOLETOS — UNIDAD INDIVIDUAL (desde tabla)
+  // ============================================================
+  async function generarBoletosUnidad(unidadId) {
+    const u = UNIDADES.find(x => x.id === unidadId);
+    if (!u) return;
+
+    const confirmado = confirm(`¿Generar ${u.cupo} boletos para ${u.nombre}?`);
+    if (!confirmado) return;
+
+    const btnGen   = document.getElementById(`btn-generar-${unidadId}`);
+    const progrFila = document.getElementById(`progreso-fila-${unidadId}`);
+
+    btnGen.disabled = true;
+    progrFila.style.display = 'block';
+    progrFila.textContent = 'Generando…';
+
+    const resultado = await generarBoletosParaUnidad(u);
+
+    if (resultado.ok) {
+      conteos[u.id] = conteos[u.id] || {};
+      conteos[u.id].boletos = resultado.cantidad;
+      progrFila.textContent = `✓ ${resultado.cantidad} boletos generados`;
+      showToast(`${resultado.cantidad} boletos generados para ${u.nombre}.`, 'success');
+      // Actualizar fila
+      setTimeout(() => {
+        progrFila.style.display = 'none';
+        renderTabla();
+        actualizarResumen();
+      }, 2000);
+    } else {
+      progrFila.textContent = `✗ Error: ${resultado.error}`;
+      btnGen.disabled = false;
+      showToast('Error al generar boletos: ' + resultado.error, 'error');
+    }
+  }
+
+  // ============================================================
+  // LÓGICA CENTRAL DE GENERACIÓN DE BOLETOS
+  // Retorna { ok: bool, cantidad: N, error: string }
+  // ============================================================
+  async function generarBoletosParaUnidad(unidad) {
+    try {
+      // Verificar si ya existen boletos para esta unidad
+      const { count, error: errCount } = await db
+        .from('boletos')
+        .select('codigo', { count: 'exact', head: true })
+        .eq('unidad_id', unidad.id);
+
+      if (errCount) throw errCount;
+      if (count > 0) {
+        return { ok: false, error: `Ya existen ${count} boletos para esta unidad` };
+      }
+
+      // Construir array de 100 boletos
+      const registros = [];
+      for (let i = 1; i <= unidad.cupo; i++) {
+        const num = String(i).padStart(4, '0');
+        registros.push({
+          codigo:    `${unidad.id}-${num}`,
+          unidad_id: unidad.id
+        });
+      }
+
+      // Insertar todos de una sola vez (batch insert)
+      const { error: errInsert } = await db
+        .from('boletos')
+        .insert(registros);
+
+      if (errInsert) throw errInsert;
+
+      return { ok: true, cantidad: registros.length };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  }
+
+  // ============================================================
+  // VER BOLETOS DE UNA UNIDAD
+  // ============================================================
+  async function verBoletos(unidadId) {
+    const u = UNIDADES.find(x => x.id === unidadId);
+    if (!u) return;
+
+    const modal = document.getElementById('modalBoletos');
+    const grid  = document.getElementById('boletosListGrid');
+    const title = document.getElementById('modalBoletosTitle');
+
+    title.textContent = `Boletos — ${u.nombre}`;
+    grid.innerHTML = '<p style="color:var(--gray-600); font-size:0.85rem;">Cargando…</p>';
+    modal.style.display = 'flex';
+
+    try {
+      // Obtener boletos con info de registro
+      const { data: boletos, error: errB } = await db
+        .from('boletos')
+        .select('codigo, registros(id)')
+        .eq('unidad_id', unidadId)
+        .order('codigo');
+
+      if (errB) throw errB;
+
+      grid.innerHTML = '';
+      if (!boletos || boletos.length === 0) {
+        grid.innerHTML = '<p style="color:var(--gray-400); font-size:0.85rem;">Sin boletos generados.</p>';
+        return;
+      }
+
+      boletos.forEach(b => {
+        const registrado = b.registros && b.registros.length > 0;
+        const chip = document.createElement('div');
+        chip.className = 'boleto-chip' + (registrado ? ' registrado' : '');
+        chip.innerHTML = `
+          <span style="width:8px; height:8px; border-radius:50%; background:${registrado ? '#22C55E' : u.color}; flex-shrink:0; display:inline-block;"></span>
+          ${b.codigo}
+          ${registrado ? '✓' : ''}
+        `;
+        grid.appendChild(chip);
+      });
+    } catch (err) {
+      grid.innerHTML = `<p class="alert alert-error">Error al cargar: ${err.message || err}</p>`;
+      showToast('Error al cargar boletos: ' + (err.message || err), 'error');
+    }
+  }
+
+  document.getElementById('btnCerrarModalBoletos').addEventListener('click', () => {
+    document.getElementById('modalBoletos').style.display = 'none';
+  });
+
+  // Cerrar modal de boletos al hacer clic en el backdrop
+  document.getElementById('modalBoletos').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modalBoletos')) {
+      document.getElementById('modalBoletos').style.display = 'none';
+    }
+  });
+
+  // ============================================================
+  // IMPRIMIR PDF — 6 BOLETOS POR PÁGINA (2×3), DISEÑO TICKET
+  // ============================================================
+  async function imprimirPDF(unidadId) {
+    const u = UNIDADES.find(x => x.id === unidadId);
+    if (!u) return;
+
+    const btnPDF = document.getElementById(`btn-pdf-${unidadId}`);
+    const textoOriginal = btnPDF.innerHTML;
+    btnPDF.disabled = true;
+    btnPDF.innerHTML = '⏳ Generando…';
+
+    try {
+      // 1. Obtener todos los boletos de la unidad
+      const { data: boletos, error: errB } = await db
+        .from('boletos')
+        .select('codigo')
+        .eq('unidad_id', unidadId)
+        .order('codigo');
+
+      if (errB) throw errB;
+      if (!boletos || boletos.length === 0) {
+        showToast('No hay boletos para imprimir.', 'error');
+        return;
+      }
+
+      showToast(`Generando PDF para ${u.nombre}… (${boletos.length} boletos)`, 'success');
+
+      // 2. Inicializar jsPDF
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      // Dimensiones A4: 210 × 297 mm
+      const pageW = 210;
+      // const pageH = 297;
+
+      // Layout: 2 columnas × 3 filas = 6 boletos por página
+      const cols     = 2;
+      const rows     = 3;
+      const marginX  = 15;   // margen izquierdo/derecho
+      const marginY  = 15;   // margen superior/inferior
+      const gapX     = 5;    // espacio horizontal entre boletos
+      const gapY     = 5;    // espacio vertical entre boletos
+
+      const boletoW = (pageW - (marginX * 2) - (gapX * (cols - 1))) / cols; // ~90mm
+      const boletoH = 60; // mm
+
+      let paginaActual = 0;
+      const boletosPerPage = cols * rows;
+
+      for (let i = 0; i < boletos.length; i++) {
+        const posEnPagina = i % boletosPerPage;
+
+        // Nueva página cuando se necesite
+        if (posEnPagina === 0 && i > 0) {
+          doc.addPage();
+        }
+
+        const col = posEnPagina % cols;
+        const row = Math.floor(posEnPagina / cols);
+
+        const x = marginX + col * (boletoW + gapX);
+        const y = marginY + row * (boletoH + gapY);
+
+        // Generar QR para este código
+        let qrDataUrl = null;
+        try {
+          qrDataUrl = await generarQRDataURL(boletos[i].codigo);
+        } catch (qrErr) {
+          console.warn('No se pudo generar QR para ' + boletos[i].codigo, qrErr);
+        }
+
+        // Dibujar el boleto
+        dibujarBoleto(doc, x, y, boletoW, boletoH, boletos[i].codigo, u, qrDataUrl);
+      }
+
+      // Guardar el PDF
+      doc.save(`boletos-${unidadId}.pdf`);
+      showToast(`PDF guardado: boletos-${unidadId}.pdf`, 'success');
+
+    } catch (err) {
+      console.error('Error generando PDF:', err);
+      showToast('Error al generar PDF: ' + (err.message || err), 'error');
+    } finally {
+      btnPDF.disabled = false;
+      btnPDF.innerHTML = textoOriginal;
+    }
+  }
+
+  // ============================================================
+  // DIBUJAR UN BOLETO INDIVIDUAL EN EL PDF
+  // ============================================================
+  function dibujarBoleto(doc, x, y, w, h, codigo, unidad, qrDataUrl) {
+    const navy  = [27,  42,  94];
+    const gold  = [201, 168, 76];
+    const white = [255, 255, 255];
+
+    // Convertir hex de color de unidad a RGB
+    const uRGB = hexToRGB(unidad.color);
+
+    // ── Fondo del boleto (rectángulo navy con borde redondeado) ──
+    doc.setFillColor(...navy);
+    doc.roundedRect(x, y, w, h, 3, 3, 'F');
+
+    // ── Franja dorada superior (8mm) ──
+    const stripH = 8;
+    doc.setFillColor(...gold);
+    // Clip superior con esquinas redondeadas (simular con rectangulo + solapado)
+    doc.roundedRect(x, y, w, stripH + 3, 3, 3, 'F');
+    doc.setFillColor(...gold);
+    doc.rect(x, y + stripH - 1, w, 4, 'F'); // tapar la parte inferior del redondeo
+
+    // Texto en la franja dorada
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...white);
+    doc.text('CONFERENCIA DE ESTACA', x + w / 2, y + 5.5, { align: 'center' });
+
+    // ── Área blanca (debajo de la franja) ──
+    const contentY = y + stripH;
+    const contentH = h - stripH;
+    doc.setFillColor(...white);
+    doc.rect(x, contentY, w, contentH, 'F');
+    // Restaurar borde redondeado inferior
+    doc.setFillColor(...white);
+    doc.roundedRect(x, contentY + contentH - 4, w, 4, 0, 0, 'F');
+
+    // ── Borde navy alrededor del boleto ──
+    doc.setDrawColor(...navy);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(x, y, w, h, 3, 3, 'S');
+
+    // ── Texto en el área blanca ──
+    const textX = x + 4;
+    const qrSize = 22; // mm
+    const qrX    = x + w - qrSize - 4;
+    const textMaxW = w - qrSize - 12;
+
+    // Nombre de la estaca
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...navy);
+    doc.text(CONFIG_EVENTO.nombreEstaca, textX, contentY + 6);
+
+    // Sesión y fecha
+    doc.setFontSize(6);
+    doc.setTextColor(90, 97, 128);
+    doc.text(
+      `${CONFIG_EVENTO.nombreSesion} — ${CONFIG_EVENTO.fecha}`,
+      textX,
+      contentY + 11,
+      { maxWidth: textMaxW }
+    );
+
+    // Barra de color con nombre de unidad
+    const barY = contentY + 15;
+    const barH = 6;
+    doc.setFillColor(...uRGB);
+    doc.roundedRect(textX - 1, barY, textMaxW + 2, barH, 1, 1, 'F');
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...white);
+    doc.text(unidad.nombre, textX + 1, barY + 4.2);
+
+    // Número de boleto (grande)
+    const numCode = codigo.split('-').slice(1).join('-') || codigo;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...navy);
+    doc.text(`Boleto #${numCode}`, textX, contentY + 31);
+
+    // Código completo (pequeño)
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(90, 97, 128);
+    doc.text(codigo, textX, contentY + 36);
+
+    // ── QR Code ──
+    if (qrDataUrl) {
+      const qrY = contentY + 3;
+      doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+    }
+  }
+
+  // ============================================================
+  // GENERAR QR COMO DATA URL (Promise)
+  // QRCode.js necesita un contenedor DOM; usamos canvas oculto
+  // ============================================================
+  function generarQRDataURL(texto) {
+    return new Promise((resolve, reject) => {
+      // QRCode.js necesita un <div> contenedor — crea su propio canvas interno
+      const div = document.createElement('div');
+      div.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;';
+      document.body.appendChild(div);
+
+      try {
+        new QRCode(div, {
+          text:         texto,
+          width:        200,
+          height:       200,
+          colorDark:    '#1B2A5E',
+          colorLight:   '#FFFFFF',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+
+        // Esperar a que QRCode.js termine de renderizar
+        setTimeout(() => {
+          try {
+            // QRCode.js crea un <canvas> dentro del div
+            const canvas = div.querySelector('canvas');
+            if (canvas) {
+              resolve(canvas.toDataURL('image/png'));
+            } else {
+              // Fallback: usar el <img> que también genera
+              const img = div.querySelector('img');
+              resolve(img ? img.src : null);
+            }
+          } catch (e) {
+            reject(e);
+          } finally {
+            div.remove();
+          }
+        }, 200);
+
+      } catch (e) {
+        div.remove();
+        reject(e);
+      }
+    });
+  }
+
+  // ============================================================
+  // BOLETO DE PRUEBA — 1 solo boleto para testear diseño y escáner
+  // ============================================================
+  async function boletoPrueba() {
+    // Seleccionar unidad
+    const opciones = UNIDADES.map((u, i) => `${i + 1}. ${u.nombre} (${u.id})`).join('\n');
+    const selStr = prompt(`Elige el número de unidad para el boleto de prueba:\n\n${opciones}`);
+    if (!selStr) return;
+
+    const idx = parseInt(selStr.trim()) - 1;
+    const u = UNIDADES[idx];
+    if (!u) { alert('Número no válido.'); return; }
+
+    const codigo = `${u.id}-0001`;
+    const btn = document.getElementById('btnBoletoPrueba');
+    btn.disabled = true;
+    btn.textContent = '⏳ Generando…';
+
+    try {
+      // Insertar en Supabase si no existe (para que el escáner lo valide)
+      const { count } = await db.from('boletos')
+        .select('codigo', { count: 'exact', head: true })
+        .eq('codigo', codigo);
+
+      if (!count || count === 0) {
+        const { error } = await db.from('boletos').insert({ codigo, unidad_id: u.id });
+        if (error) throw error;
+        showToast(`Boleto ${codigo} guardado en Supabase ✓`, 'success');
+      } else {
+        showToast(`El boleto ${codigo} ya existía en Supabase`, 'success');
+      }
+
+      // Generar PDF con 1 solo boleto
+      const qrDataUrl = await generarQRDataURL(codigo);
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      dibujarBoleto(doc, 15, 15, 90, 60, codigo, u, qrDataUrl);
+      doc.save(`boleto-prueba-${u.id}.pdf`);
+
+      showToast(`PDF descargado. Código para escanear: ${codigo}`, 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Error: ' + (err.message || err), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🧪 Boleto de prueba';
+    }
+  }
+
+  // ============================================================
+  // EXPORTAR CSV COMPLETO
+  // ============================================================
+  document.getElementById('btnExportarCSV').addEventListener('click', async () => {
+    const btn = document.getElementById('btnExportarCSV');
+    const textoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Exportando…';
+
+    try {
+      // Obtener boletos con sus registros relacionados
+      const { data: boletos, error: errB } = await db
+        .from('boletos')
+        .select(`
+          codigo,
+          unidad_id,
+          unidad_nombre,
+          created_at,
+          registros (
+            id,
+            created_at,
+            dispositivo
+          )
+        `)
+        .order('unidad_id')
+        .order('codigo');
+
+      if (errB) throw errB;
+
+      if (!boletos || boletos.length === 0) {
+        showToast('No hay boletos para exportar.', 'error');
+        return;
+      }
+
+      // Construir CSV
+      const filas = [
+        ['Código', 'Unidad ID', 'Unidad Nombre', 'Generado en', 'Registrado', 'Hora registro', 'Dispositivo']
+      ];
+
+      boletos.forEach(b => {
+        const reg = b.registros && b.registros.length > 0 ? b.registros[0] : null;
+        filas.push([
+          b.codigo,
+          b.unidad_id,
+          b.unidad_nombre || '',
+          formatearFecha(b.created_at),
+          reg ? 'Sí' : 'No',
+          reg ? formatearFecha(reg.created_at) : '',
+          reg ? (reg.dispositivo || '') : ''
+        ]);
+      });
+
+      const csvContent = filas
+        .map(fila => fila.map(celda => `"${String(celda).replace(/"/g, '""')}"`).join(','))
+        .join('\r\n');
+
+      // Descargar
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `asistencia-conferencia-${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast(`CSV exportado: ${boletos.length} boletos.`, 'success');
+
+    } catch (err) {
+      console.error('Error exportando CSV:', err);
+      showToast('Error al exportar CSV: ' + (err.message || err), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = textoOriginal;
+    }
+  });
+
+  // ============================================================
+  // BOTÓN ACTUALIZAR
+  // ============================================================
+  document.getElementById('btnRefresh').addEventListener('click', () => {
+    cargarDatos();
+    showToast('Datos actualizados.', 'success');
+  });
+
+  // ============================================================
+  // UTILIDADES — LOG DE PROGRESO
+  // ============================================================
+  function limpiarLog() {
+    document.getElementById('progresoLog').innerHTML = '';
+    document.getElementById('genProgressFill').style.width = '0%';
+    document.getElementById('progresoTexto').textContent = '';
+  }
+
+  function agregarLog(mensaje, tipo = 'info') {
+    const log = document.getElementById('progresoLog');
+    const p   = document.createElement('p');
+    p.className = `log-${tipo}`;
+    p.textContent = mensaje;
+    log.appendChild(p);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function actualizarGenProgreso(completadas, total, textoActual) {
+    const pct = total > 0 ? Math.round((completadas / total) * 100) : 0;
+    document.getElementById('genProgressFill').style.width = pct + '%';
+    document.getElementById('progresoTexto').textContent =
+      `${completadas}/${total} — ${textoActual}`;
+  }
+
+  // ============================================================
+  // UTILIDADES — TOAST
+  // ============================================================
+  function showToast(msg, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    const icono = type === 'success' ? '✓' : '✗';
+    toast.innerHTML = `<span>${icono}</span> ${msg}`;
+    container.appendChild(toast);
+    // Auto-eliminar tras 4 segundos
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(120%)';
+      toast.style.transition = 'all 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  // ============================================================
+  // UTILIDADES — FORMATO DE FECHA
+  // ============================================================
+  function formatearFecha(isoString) {
+    if (!isoString) return '';
+    try {
+      return new Date(isoString).toLocaleString('es-MX', {
+        day:    '2-digit',
+        month:  '2-digit',
+        year:   'numeric',
+        hour:   '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return isoString;
+    }
+  }
+
+  // ============================================================
+  // UTILIDADES — HEX A RGB
+  // ============================================================
+  function hexToRGB(hex) {
+    const clean = hex.replace('#', '');
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    return [r, g, b];
+  }
+
+  // ============================================================
+  // ARRANQUE
+  // ============================================================
+  verificarAuth();
+  </script>
+
+</body>
+</html>

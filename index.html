@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conferencia de Estaca — Estaca Ensenada México</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body {
+      background: linear-gradient(160deg, var(--navy-dark) 0%, var(--navy) 50%, #1D3070 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* --- Hero --- */
+    .hero {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1.5rem 2rem;
+      text-align: center;
+    }
+
+    .hero-emblem {
+      width: 90px;
+      height: 90px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+      box-shadow: 0 0 0 8px rgba(201,168,76,0.2), 0 0 0 16px rgba(201,168,76,0.08);
+      animation: pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 8px rgba(201,168,76,0.2), 0 0 0 16px rgba(201,168,76,0.08); }
+      50%       { box-shadow: 0 0 0 12px rgba(201,168,76,0.25), 0 0 0 24px rgba(201,168,76,0.05); }
+    }
+
+    .hero-emblem svg {
+      width: 46px;
+      height: 46px;
+    }
+
+    .hero-eyebrow {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    .hero h1 {
+      color: var(--white);
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      margin-bottom: 0.5rem;
+    }
+
+    .hero-estaca {
+      color: rgba(255,255,255,0.75);
+      font-size: clamp(1rem, 2.5vw, 1.3rem);
+      margin-bottom: 0.5rem;
+    }
+
+    .hero-fecha {
+      display: inline-block;
+      background: rgba(201,168,76,0.18);
+      border: 1px solid rgba(201,168,76,0.4);
+      color: var(--gold-light);
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.4rem 1.1rem;
+      border-radius: 999px;
+      margin-top: 0.5rem;
+    }
+
+    .divider-gold {
+      width: 60px;
+      height: 3px;
+      background: var(--gold);
+      border-radius: 2px;
+      margin: 1.5rem auto;
+    }
+
+    /* --- Tarjetas de módulos --- */
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 1.5rem 3rem;
+    }
+
+    .module-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius-lg);
+      padding: 2rem 1.75rem;
+      text-align: center;
+      text-decoration: none;
+      color: var(--white);
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      backdrop-filter: blur(8px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .module-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--card-accent, var(--gold));
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .module-card:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.25);
+      transform: translateY(-4px);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+    }
+
+    .module-card:active {
+      transform: translateY(-2px);
+    }
+
+    .module-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+
+    .module-card h2 {
+      font-size: 1.3rem;
+      color: var(--white);
+      margin: 0;
+    }
+
+    .module-card p {
+      font-size: 0.87rem;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .module-arrow {
+      font-size: 1.2rem;
+      color: var(--gold);
+      transition: transform 0.2s;
+    }
+
+    .module-card:hover .module-arrow {
+      transform: translateX(4px);
+    }
+
+    /* Colores por módulo */
+    .card-admin  { --card-accent: #C9A84C; }
+    .card-scanner { --card-accent: #22C55E; }
+    .card-dash   { --card-accent: #3A86FF; }
+
+    .icon-admin  { background: rgba(201,168,76,0.15); color: #C9A84C; }
+    .icon-scanner { background: rgba(34,197,94,0.15); color: #22C55E; }
+    .icon-dash   { background: rgba(58,134,255,0.15); color: #3A86FF; }
+
+    /* --- Footer --- */
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      color: rgba(255,255,255,0.35);
+      font-size: 0.78rem;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* --- Contador general (decorativo) --- */
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 2.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .stats-item {
+      text-align: center;
+    }
+
+    .stats-num {
+      display: block;
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--gold);
+      line-height: 1;
+    }
+
+    .stats-desc {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.5);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== HERO ========== -->
+  <section class="hero">
+
+    <div class="hero-emblem" aria-hidden="true">
+      <!-- Ícono de iglesia simplificado -->
+      <svg viewBox="0 0 46 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6"  y="22" width="34" height="18" rx="2" fill="#1B2A5E"/>
+        <rect x="14" y="28" width="8"  height="12" rx="1" fill="#1B2A5E"/>
+        <rect x="24" y="28" width="8"  height="8"  rx="1" fill="#1B2A5E"/>
+        <polygon points="23,4 38,22 8,22" fill="#1B2A5E"/>
+        <rect x="21" y="0" width="4"  height="8"  rx="1" fill="#1B2A5E"/>
+      </svg>
+    </div>
+
+    <p class="hero-eyebrow">Sistema de Asistencia</p>
+    <h1>Conferencia de Estaca</h1>
+    <p class="hero-estaca">Estaca Ensenada México</p>
+    <span class="hero-fecha">📅 23 y 24 de mayo de 2026</span>
+
+    <div class="divider-gold"></div>
+
+    <!-- Stats decorativos -->
+    <div class="stats-bar">
+      <div class="stats-item">
+        <span class="stats-num">11</span>
+        <span class="stats-desc">Unidades</span>
+      </div>
+      <div class="stats-item">
+        <span class="stats-num">1,100</span>
+        <span class="stats-desc">Boletos</span>
+      </div>
+      <div class="stats-item">
+        <span class="stats-num">~800</span>
+        <span class="stats-desc">Meta asistencia</span>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ========== MÓDULOS ========== -->
+  <div class="modules-grid">
+
+    <!-- Administrador -->
+    <a href="admin.html" class="module-card card-admin">
+      <div class="module-icon icon-admin">⚙️</div>
+      <div>
+        <h2>Administrador</h2>
+        <p>Genera boletos, imprímelos en PDF y consulta estadísticas de cada unidad.</p>
+      </div>
+      <span class="module-arrow">→</span>
+    </a>
+
+    <!-- Escáner -->
+    <a href="scanner.html" class="module-card card-scanner">
+      <div class="module-icon icon-scanner">📷</div>
+      <div>
+        <h2>Escáner</h2>
+        <p>Escanea códigos QR en la puerta. Optimizado para móvil con cámara trasera.</p>
+      </div>
+      <span class="module-arrow">→</span>
+    </a>
+
+    <!-- Dashboard -->
+    <a href="dashboard.html" class="module-card card-dash">
+      <div class="module-icon icon-dash">📊</div>
+      <div>
+        <h2>Dashboard</h2>
+        <p>Pantalla de control en tiempo real. Estadísticas por unidad y gráficas de avance.</p>
+      </div>
+      <span class="module-arrow">→</span>
+    </a>
+
+  </div>
+
+  <!-- ========== FOOTER ========== -->
+  <footer>
+    Conferencia de Estaca · Estaca Ensenada México · Mayo 2026
+  </footer>
+
+</body>
+</html>

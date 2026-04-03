@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard en Vivo — Conferencia de Estaca</title>
+
+  <!-- Supabase y Chart.js desde CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+  <!-- Configuración del evento y unidades -->
+  <script src="config.js"></script>
+
+  <style>
+    /* ============================================================
+       VARIABLES Y RESET GLOBAL
+    ============================================================ */
+    :root {
+      --bg-primary:    #0A0F1E;
+      --bg-card:       #111827;
+      --bg-card-hover: #1a2236;
+      --bg-table-row:  #0f1929;
+      --bg-table-alt:  #0d1525;
+      --border-subtle: rgba(255, 255, 255, 0.07);
+      --border-card:   rgba(201, 168, 76, 0.2);
+      --gold:          #C9A84C;
+      --gold-bright:   #F0C940;
+      --gold-dark:     #9A7A30;
+      --green:         #22C55E;
+      --yellow:        #F59E0B;
+      --red:           #EF4444;
+      --silver:        #A0AEC0;
+      --bronze:        #CD7F32;
+      --text-primary:  #F0F4FF;
+      --text-muted:    #8A9BBF;
+      --text-dim:      #506080;
+      --glow-gold:     0 0 20px rgba(201, 168, 76, 0.4);
+      --glow-green:    0 0 20px rgba(34, 197, 94, 0.4);
+      --transition:    all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      /* Fondo con cuadrícula sutil estilo "war room" */
+      background-image:
+        linear-gradient(rgba(201, 168, 76, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(201, 168, 76, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* ============================================================
+       BARRA DE NAVEGACIÓN
+    ============================================================ */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.65rem 1.5rem;
+      background: rgba(10, 15, 30, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-card);
+      box-shadow: 0 2px 24px rgba(0,0,0,0.5);
+    }
+
+    .navbar-left {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .btn-inicio {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.85rem;
+      border: 1px solid var(--border-card);
+      border-radius: 6px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      transition: var(--transition);
+      background: transparent;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-inicio:hover {
+      color: var(--gold);
+      border-color: var(--gold);
+      background: rgba(201, 168, 76, 0.08);
+    }
+
+    .navbar-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: var(--text-primary);
+      text-transform: uppercase;
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    #reloj {
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--gold);
+      letter-spacing: 0.06em;
+      min-width: 85px;
+      text-align: right;
+    }
+
+    /* Indicador "VIVO" con punto pulsante */
+    .badge-vivo {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 20px;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #EF4444;
+    }
+
+    .dot-vivo {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #EF4444;
+      animation: pulso-rojo 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulso-rojo {
+      0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+      50%       { opacity: 0.7; transform: scale(1.25); box-shadow: 0 0 0 5px rgba(239,68,68,0); }
+    }
+
+    /* Estado de conexión */
+    .estado-conexion {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+    }
+    .estado-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      transition: var(--transition);
+    }
+    .estado-conexion.conectado { color: var(--green); }
+    .estado-conexion.conectado .estado-dot {
+      background: var(--green);
+      box-shadow: var(--glow-green);
+    }
+    .estado-conexion.desconectado { color: var(--red); }
+    .estado-conexion.desconectado .estado-dot { background: var(--red); }
+
+    /* Botón exportar CSV */
+    .btn-exportar {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.85rem;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      border-radius: 6px;
+      background: rgba(34, 197, 94, 0.08);
+      color: var(--green);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+    .btn-exportar:hover {
+      background: rgba(34, 197, 94, 0.18);
+      border-color: var(--green);
+      box-shadow: var(--glow-green);
+    }
+
+    /* ============================================================
+       CONTENEDOR PRINCIPAL
+    ============================================================ */
+    .main {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    /* Encabezado del evento */
+    .evento-header {
+      text-align: center;
+      padding-bottom: 0.5rem;
+    }
+    .evento-header h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .evento-header p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* ============================================================
+       SECCIÓN 1 — TARJETAS HERO (métricas principales)
+    ============================================================ */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    .hero-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 14px;
+      padding: 1.75rem 1.5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+
+    /* Tarjeta 1 — Total registrados */
+    .hero-card .numero-gigante {
+      font-size: 5.5rem;
+      font-weight: 900;
+      line-height: 1;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      transition: var(--transition);
+    }
+    .hero-card .label-principal {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-top: 0.5rem;
+    }
+    .hero-card .label-sub {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-top: 0.3rem;
+    }
+
+    /* Animación de número nuevo */
+    @keyframes num-bump {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.12); color: var(--gold); }
+      100% { transform: scale(1); }
+    }
+    .numero-gigante.bump {
+      animation: num-bump 0.5s ease;
+    }
+
+    /* Tarjeta 2 — Progreso circular */
+    .progress-circle-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0.5rem auto 0.75rem;
+      position: relative;
+      width: 140px;
+      height: 140px;
+    }
+    .progress-circle-svg {
+      transform: rotate(-90deg);
+    }
+    .progress-circle-bg {
+      fill: none;
+      stroke: rgba(255,255,255,0.07);
+      stroke-width: 12;
+    }
+    .progress-circle-fg {
+      fill: none;
+      stroke: url(#goldGradient);
+      stroke-width: 12;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .progress-circle-text {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    .progress-pct {
+      font-size: 2.1rem;
+      font-weight: 900;
+      color: var(--gold);
+      display: block;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .progress-pct-label {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+    }
+
+    /* Tarjeta 3 — Récord */
+    .record-valor {
+      font-size: 5.5rem;
+      font-weight: 900;
+      line-height: 1;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      transition: var(--transition);
+    }
+    .record-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-top: 0.6rem;
+      padding: 0.3rem 0.9rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      background: rgba(201, 168, 76, 0.12);
+      border: 1px solid rgba(201, 168, 76, 0.4);
+      color: var(--gold);
+    }
+    .record-badge.nuevo-record {
+      animation: blink-gold 1.1s ease-in-out infinite alternate;
+      background: rgba(201, 168, 76, 0.2);
+      border-color: var(--gold);
+      box-shadow: var(--glow-gold);
+    }
+    @keyframes blink-gold {
+      0%   { opacity: 1; box-shadow: 0 0 12px rgba(201,168,76,0.5); }
+      100% { opacity: 0.75; box-shadow: 0 0 28px rgba(201,168,76,0.9); }
+    }
+
+    .hero-card.record-roto {
+      border-color: var(--gold);
+      box-shadow: 0 0 30px rgba(201,168,76,0.25);
+    }
+    .hero-card.record-roto::before {
+      background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
+      height: 3px;
+    }
+
+    /* ============================================================
+       SECCIÓN 2 — BARRA DE PROGRESO GENERAL
+    ============================================================ */
+    .seccion-barra {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+    }
+    .barra-titulo {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.75rem;
+    }
+    .barra-titulo span {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .barra-titulo .barra-pct-txt {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--gold);
+    }
+
+    .barra-pista {
+      width: 100%;
+      height: 22px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 11px;
+      overflow: hidden;
+      position: relative;
+    }
+    .barra-relleno {
+      height: 100%;
+      border-radius: 11px;
+      background: linear-gradient(90deg, #1D3461 0%, var(--gold) 100%);
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      min-width: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 0.5rem;
+    }
+    .barra-relleno-txt {
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: rgba(0,0,0,0.7);
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    /* ============================================================
+       SECCIÓN 3 — TABLA POR UNIDAD
+    ============================================================ */
+    .seccion-tabla {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .seccion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .seccion-titulo {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .ultima-actualizacion {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    .tabla-wrap {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    thead th {
+      padding: 0.7rem 0.9rem;
+      text-align: left;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      background: rgba(0,0,0,0.3);
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s;
+    }
+    thead th:hover { color: var(--gold); }
+    thead th.sort-asc::after  { content: ' ▲'; color: var(--gold); }
+    thead th.sort-desc::after { content: ' ▼'; color: var(--gold); }
+
+    tbody tr {
+      background: var(--bg-table-row);
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 0.25s, box-shadow 0.25s;
+    }
+    tbody tr:nth-child(even) { background: var(--bg-table-alt); }
+    tbody tr:hover { background: var(--bg-card-hover); }
+
+    /* Flash verde cuando llega nuevo registro */
+    @keyframes flash-verde {
+      0%   { background: rgba(34,197,94,0.35); box-shadow: inset 0 0 0 1px rgba(34,197,94,0.6); }
+      100% { background: var(--bg-table-row); box-shadow: none; }
+    }
+    tbody tr.flash-new {
+      animation: flash-verde 1.2s ease-out forwards;
+    }
+
+    td {
+      padding: 0.65rem 0.9rem;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    .td-num { color: var(--text-dim); width: 36px; }
+
+    .td-unidad {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      font-weight: 600;
+    }
+    .color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: inline-block;
+    }
+
+    .td-emitidos { color: var(--text-muted); text-align: right; }
+    .td-registrados {
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .td-pct {
+      text-align: right;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Badges de estado */
+    .estado-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+    .estado-alto    { background: rgba(34,197,94,0.15);  color: #22C55E; border: 1px solid rgba(34,197,94,0.3); }
+    .estado-medio   { background: rgba(245,158,11,0.15); color: #F59E0B; border: 1px solid rgba(245,158,11,0.3); }
+    .estado-bajo    { background: rgba(239,68,68,0.15);  color: #EF4444; border: 1px solid rgba(239,68,68,0.3); }
+
+    /* Mini barra de progreso dentro de la tabla */
+    .mini-barra-wrap {
+      width: 90px;
+      height: 8px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .mini-barra-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    /* ============================================================
+       SECCIÓN 4 — GRÁFICAS
+    ============================================================ */
+    .graficas-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+    .grafica-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .grafica-titulo {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    .grafica-canvas-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    /* ============================================================
+       SECCIÓN 5 — PODIO TOP 3
+    ============================================================ */
+    .podio-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .podio-titulo {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+      text-align: center;
+    }
+    .podio-grid {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .podio-card {
+      flex: 1;
+      max-width: 280px;
+      border-radius: 12px;
+      padding: 1.25rem 1rem;
+      text-align: center;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .podio-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+
+    /* 1er lugar — oro */
+    .podio-1 {
+      background: rgba(201,168,76,0.08);
+      border: 2px solid rgba(201,168,76,0.5);
+      box-shadow: 0 0 20px rgba(201,168,76,0.15);
+    }
+    .podio-1::before { background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+
+    /* 2do lugar — plata */
+    .podio-2 {
+      background: rgba(160,174,192,0.06);
+      border: 2px solid rgba(160,174,192,0.3);
+    }
+    .podio-2::before { background: linear-gradient(90deg, transparent, var(--silver), transparent); }
+
+    /* 3er lugar — bronce */
+    .podio-3 {
+      background: rgba(205,127,50,0.06);
+      border: 2px solid rgba(205,127,50,0.3);
+    }
+    .podio-3::before { background: linear-gradient(90deg, transparent, var(--bronze), transparent); }
+
+    .podio-medalla {
+      font-size: 2.2rem;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    .podio-nombre {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.4rem;
+      line-height: 1.2;
+    }
+    .podio-pct {
+      font-size: 2.5rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+    .podio-1 .podio-pct { color: var(--gold); }
+    .podio-2 .podio-pct { color: var(--silver); }
+    .podio-3 .podio-pct { color: var(--bronze); }
+
+    .podio-count {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    .podio-empty {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      padding: 2rem;
+    }
+
+    /* ============================================================
+       UTILIDADES
+    ============================================================ */
+    .divider {
+      height: 1px;
+      background: var(--border-subtle);
+      margin: 0;
+    }
+
+    /* ============================================================
+       RESPONSIVO
+    ============================================================ */
+    @media (max-width: 1024px) {
+      .hero-grid { grid-template-columns: 1fr 1fr; }
+      .graficas-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .podio-grid { flex-direction: column; align-items: center; }
+      .podio-card { max-width: 100%; width: 100%; }
+      .navbar-title { display: none; }
+      .btn-exportar span { display: none; }
+      .numero-gigante { font-size: 4rem; }
+      .record-valor { font-size: 4rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       BARRA DE NAVEGACIÓN
+  ============================================================ -->
+  <nav class="navbar">
+    <div class="navbar-left">
+      <a href="index.html" class="btn-inicio">&#8592; Inicio</a>
+      <span class="navbar-title">Dashboard en Vivo</span>
+    </div>
+
+    <div class="navbar-right">
+      <div class="estado-conexion desconectado" id="estadoConexion">
+        <span class="estado-dot"></span>
+        <span id="estadoTexto">Conectando...</span>
+      </div>
+      <span id="reloj">--:--:--</span>
+      <div class="badge-vivo">
+        <span class="dot-vivo"></span>
+        VIVO
+      </div>
+      <button class="btn-exportar" onclick="exportarCSV()">
+        &#8681; <span>Exportar CSV</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       CONTENIDO PRINCIPAL
+  ============================================================ -->
+  <main class="main">
+
+    <!-- Encabezado del evento -->
+    <div class="evento-header">
+      <h1 id="nombreEstaca">Conferencia de Estaca</h1>
+      <p id="infoEvento">Cargando...</p>
+    </div>
+
+    <!-- SECCIÓN 1 — Tarjetas hero -->
+    <div class="hero-grid">
+
+      <!-- Tarjeta 1: Total registrados -->
+      <div class="hero-card">
+        <div class="numero-gigante" id="totalNumero">0</div>
+        <div class="label-principal">Asistentes Registrados</div>
+        <div class="label-sub" id="labelDeEsperados">de 800 esperados</div>
+      </div>
+
+      <!-- Tarjeta 2: Progreso circular -->
+      <div class="hero-card">
+        <div class="progress-circle-wrap">
+          <!-- SVG: el gradiente se define en defs -->
+          <svg class="progress-circle-svg" width="140" height="140" viewBox="0 0 140 140">
+            <defs>
+              <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="#1D3461"/>
+                <stop offset="100%" stop-color="#C9A84C"/>
+              </linearGradient>
+            </defs>
+            <circle class="progress-circle-bg" cx="70" cy="70" r="54"/>
+            <circle class="progress-circle-fg" id="progressCircle"
+              cx="70" cy="70" r="54"
+              stroke-dasharray="339.29"
+              stroke-dashoffset="339.29"/>
+          </svg>
+          <div class="progress-circle-text">
+            <span class="progress-pct" id="progressPct">0%</span>
+            <span class="progress-pct-label">AVANCE</span>
+          </div>
+        </div>
+        <div class="label-principal">Progreso</div>
+        <div class="label-sub" id="labelMeta">Meta: 800 personas</div>
+      </div>
+
+      <!-- Tarjeta 3: Récord -->
+      <div class="hero-card" id="cardRecord">
+        <div class="record-valor" id="recordValor">0</div>
+        <div class="label-principal">Total Actual</div>
+        <div class="record-badge" id="recordBadge">Récord anterior: 500</div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 2 — Barra de progreso general -->
+    <div class="seccion-barra">
+      <div class="barra-titulo">
+        <span>Progreso hacia la meta</span>
+        <span class="barra-pct-txt" id="barraPctTxt">0%</span>
+      </div>
+      <div class="barra-pista">
+        <div class="barra-relleno" id="barraRelleno" style="width:0%">
+          <span class="barra-relleno-txt" id="barraTxtDentro"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 3 — Tabla por unidad -->
+    <div class="seccion-tabla">
+      <div class="seccion-header">
+        <span class="seccion-titulo">Asistencia por Barrio / Rama</span>
+        <span class="ultima-actualizacion" id="ultimaActualizacion">Actualizando...</span>
+      </div>
+      <div class="tabla-wrap">
+        <table id="tablaUnidades">
+          <thead>
+            <tr>
+              <th class="td-num" onclick="sortTabla(0)">#</th>
+              <th onclick="sortTabla(1)">Barrio / Rama</th>
+              <th onclick="sortTabla(2)" style="text-align:right">Emitidos</th>
+              <th onclick="sortTabla(3)" style="text-align:right">Registrados</th>
+              <th onclick="sortTabla(4)" style="text-align:right">% Asist.</th>
+              <th onclick="sortTabla(5)">Estado</th>
+              <th>Barra</th>
+            </tr>
+          </thead>
+          <tbody id="tablaBody">
+            <!-- Filas generadas por JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 4 — Gráficas -->
+    <div class="graficas-grid">
+
+      <!-- Gráfica 1: Barras horizontales por unidad -->
+      <div class="grafica-card">
+        <div class="grafica-titulo">Registrados por Barrio / Rama</div>
+        <div class="grafica-canvas-wrap">
+          <canvas id="graficaBarras" height="320"></canvas>
+        </div>
+      </div>
+
+      <!-- Gráfica 2: Línea de llegadas acumuladas -->
+      <div class="grafica-card">
+        <div class="grafica-titulo">Llegadas Acumuladas en el Tiempo</div>
+        <div class="grafica-canvas-wrap">
+          <canvas id="graficaLinea" height="320"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 5 — Podio Top 3 -->
+    <div class="podio-wrap">
+      <div class="podio-titulo">&#127942; Top 3 — Mayor Porcentaje de Asistencia</div>
+      <div class="podio-grid" id="podioGrid">
+        <div class="podio-empty">Cargando datos...</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================================
+       JAVASCRIPT PRINCIPAL
+  ============================================================ -->
+  <script>
+    // ============================================================
+    // VARIABLES DE ESTADO GLOBAL
+    // ============================================================
+    let db = null;                   // Cliente Supabase
+    let totalRegistrados = 0;        // Contador global
+    let byUnit = {};                 // { BAR01: 0, BAR02: 0, ... }
+    let timeline = [];               // [{ ts: Date, acumulado: number }]
+    let realtimeChannel = null;      // Canal Supabase realtime
+    let pollingTimer = null;         // Temporizador de respaldo
+    let sortColIdx = 3;              // Columna de orden actual (registrados)
+    let sortAsc = false;             // Dirección del orden
+    let graficaBarras = null;        // Instancia Chart.js barras
+    let graficaLinea = null;         // Instancia Chart.js línea
+
+    // Circunferencia del círculo SVG (r=54): 2*π*54 ≈ 339.29
+    const CIRCUNFERENCIA = 2 * Math.PI * 54;
+
+    // ============================================================
+    // INICIALIZACIÓN
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      configurarEncabezado();
+      iniciarReloj();
+      iniciarSupabase();
+      await cargarDatosIniciales();
+      renderizarTodo();
+      suscribirRealtime();
+      iniciarPolling();
+    });
+
+    // Rellena el encabezado con datos del evento desde config.js
+    function configurarEncabezado() {
+      document.getElementById('nombreEstaca').textContent =
+        CONFIG_EVENTO.nombreEstaca;
+      document.getElementById('infoEvento').textContent =
+        CONFIG_EVENTO.nombreSesion + ' — ' + CONFIG_EVENTO.fecha;
+      document.getElementById('labelDeEsperados').textContent =
+        'de ' + CONFIG_EVENTO.metaAsistencia + ' esperados';
+      document.getElementById('labelMeta').textContent =
+        'Meta: ' + CONFIG_EVENTO.metaAsistencia + ' personas';
+      document.title =
+        'Dashboard — ' + CONFIG_EVENTO.nombreEstaca;
+
+      // Inicializa contadores por unidad en cero
+      UNIDADES.forEach(u => { byUnit[u.id] = 0; });
+    }
+
+    // ============================================================
+    // RELOJ EN VIVO
+    // ============================================================
+    function iniciarReloj() {
+      const el = document.getElementById('reloj');
+      function tick() {
+        el.textContent = new Date().toLocaleTimeString('es-MX');
+      }
+      tick();
+      setInterval(tick, 1000);
+    }
+
+    // ============================================================
+    // SUPABASE — CLIENTE
+    // ============================================================
+    function iniciarSupabase() {
+      try {
+        db = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+      } catch (e) {
+        console.error('Error al inicializar Supabase:', e);
+        setEstadoConexion(false);
+      }
+    }
+
+    // ============================================================
+    // CARGA INICIAL DE DATOS
+    // ============================================================
+    async function cargarDatosIniciales() {
+      if (!db) return;
+      try {
+        // Obtener todos los registros con su unidad_id y timestamp
+        const { data, error } = await db
+          .from('registros')
+          .select('id, unidad_id, escaneado_en')
+          .order('escaneado_en', { ascending: true });
+
+        if (error) throw error;
+
+        // Resetear contadores
+        UNIDADES.forEach(u => { byUnit[u.id] = 0; });
+        timeline = [];
+        let acumulado = 0;
+
+        (data || []).forEach(r => {
+          if (byUnit.hasOwnProperty(r.unidad_id)) {
+            byUnit[r.unidad_id]++;
+          }
+          acumulado++;
+          timeline.push({ ts: new Date(r.escaneado_en), acumulado });
+        });
+
+        totalRegistrados = acumulado;
+        actualizarTimestamp();
+      } catch (err) {
+        console.error('Error al cargar datos iniciales:', err);
+      }
+    }
+
+    // ============================================================
+    // RENDERIZADO COMPLETO
+    // ============================================================
+    function renderizarTodo() {
+      actualizarHero();
+      actualizarBarraGeneral();
+      actualizarTabla();
+      actualizarGraficaBarras();
+      actualizarGraficaLinea();
+      actualizarPodio();
+    }
+
+    // ============================================================
+    // SECCIÓN 1 — HERO METRICS
+    // ============================================================
+    function actualizarHero() {
+      const meta = CONFIG_EVENTO.metaAsistencia;
+      const record = CONFIG_EVENTO.recordAnterior;
+      const pct = meta > 0 ? Math.min(100, Math.round((totalRegistrados / meta) * 100)) : 0;
+
+      // Tarjeta 1 — Total
+      document.getElementById('totalNumero').textContent =
+        totalRegistrados.toLocaleString('es-MX');
+
+      // Tarjeta 2 — Círculo de progreso
+      const offset = CIRCUNFERENCIA * (1 - pct / 100);
+      document.getElementById('progressCircle').style.strokeDashoffset = offset;
+      document.getElementById('progressPct').textContent = pct + '%';
+
+      // Tarjeta 3 — Récord
+      const recordEl = document.getElementById('recordValor');
+      const badgeEl  = document.getElementById('recordBadge');
+      const cardEl   = document.getElementById('cardRecord');
+
+      recordEl.textContent = totalRegistrados.toLocaleString('es-MX');
+
+      if (totalRegistrados > record) {
+        // ¡Nuevo récord!
+        badgeEl.textContent = '🏆 NUEVO RÉCORD';
+        badgeEl.classList.add('nuevo-record');
+        cardEl.classList.add('record-roto');
+        recordEl.style.color = 'var(--gold)';
+      } else {
+        badgeEl.textContent =
+          'Récord anterior: ' + record + ' | Actual: ' + totalRegistrados;
+        badgeEl.classList.remove('nuevo-record');
+        cardEl.classList.remove('record-roto');
+        recordEl.style.color = '';
+      }
+    }
+
+    // Animación de bump al número total cuando llega nuevo registro
+    function animarNumero() {
+      const el = document.getElementById('totalNumero');
+      el.classList.remove('bump');
+      // Forzar reflow para reiniciar la animación
+      void el.offsetWidth;
+      el.classList.add('bump');
+    }
+
+    // ============================================================
+    // SECCIÓN 2 — BARRA GENERAL
+    // ============================================================
+    function actualizarBarraGeneral() {
+      const meta = CONFIG_EVENTO.metaAsistencia;
+      const pct = meta > 0 ? Math.min(100, (totalRegistrados / meta) * 100) : 0;
+      const pctStr = Math.round(pct) + '%';
+
+      const barra = document.getElementById('barraRelleno');
+      const txtDentro = document.getElementById('barraTxtDentro');
+      const txtFuera  = document.getElementById('barraPctTxt');
+
+      barra.style.width = pct + '%';
+      txtDentro.textContent = pct >= 8 ? pctStr : '';
+      txtFuera.textContent  = pctStr;
+    }
+
+    // ============================================================
+    // SECCIÓN 3 — TABLA POR UNIDAD
+    // ============================================================
+    function actualizarTabla(flashUnidadId) {
+      const tbody = document.getElementById('tablaBody');
+
+      // Construir filas con datos actuales
+      const filas = UNIDADES.map((u, idx) => {
+        const reg = byUnit[u.id] || 0;
+        const emitidos = u.cupo;
+        const pct = emitidos > 0 ? (reg / emitidos) * 100 : 0;
+        return { idx: idx + 1, unidad: u, reg, emitidos, pct };
+      });
+
+      // Ordenar
+      filas.sort((a, b) => {
+        let va, vb;
+        switch (sortColIdx) {
+          case 0: va = a.idx;      vb = b.idx; break;
+          case 1: va = a.unidad.nombre.toLowerCase(); vb = b.unidad.nombre.toLowerCase(); break;
+          case 2: va = a.emitidos; vb = b.emitidos; break;
+          case 3: va = a.reg;      vb = b.reg; break;
+          case 4: va = a.pct;      vb = b.pct; break;
+          default: va = a.reg;    vb = b.reg;
+        }
+        if (typeof va === 'string') return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        return sortAsc ? va - vb : vb - va;
+      });
+
+      // Guardar referencia de filas existentes para detectar cuál flashear
+      const filasExistentes = {};
+      tbody.querySelectorAll('tr[data-unidad-id]').forEach(tr => {
+        filasExistentes[tr.dataset.unidadId] = tr;
+      });
+
+      // Reconstruir tbody
+      tbody.innerHTML = '';
+      filas.forEach((f, i) => {
+        const pctRedondeado = Math.round(f.pct);
+        let estadoClase, estadoTexto;
+        if (f.pct >= 70) {
+          estadoClase = 'estado-alto';  estadoTexto = 'ALTO';
+        } else if (f.pct >= 40) {
+          estadoClase = 'estado-medio'; estadoTexto = 'MEDIO';
+        } else {
+          estadoClase = 'estado-bajo';  estadoTexto = 'BAJO';
+        }
+
+        const tr = document.createElement('tr');
+        tr.dataset.unidadId = f.unidad.id;
+
+        tr.innerHTML = `
+          <td class="td-num">${i + 1}</td>
+          <td>
+            <div class="td-unidad">
+              <span class="color-dot" style="background:${f.unidad.color}"></span>
+              ${f.unidad.nombre}
+            </div>
+          </td>
+          <td class="td-emitidos">${f.emitidos}</td>
+          <td class="td-registrados">${f.reg}</td>
+          <td class="td-pct" style="color:${f.pct>=70?'var(--green)':f.pct>=40?'var(--yellow)':'var(--red)'}">${pctRedondeado}%</td>
+          <td><span class="estado-badge ${estadoClase}">${estadoTexto}</span></td>
+          <td>
+            <div class="mini-barra-wrap">
+              <div class="mini-barra-fill"
+                style="width:${Math.min(100,f.pct)}%;background:${f.unidad.color}">
+              </div>
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+
+        // Flash en la fila correspondiente al nuevo registro
+        if (flashUnidadId && f.unidad.id === flashUnidadId) {
+          tr.classList.add('flash-new');
+        }
+      });
+
+      // Actualizar íconos de ordenamiento en encabezados
+      document.querySelectorAll('#tablaUnidades thead th').forEach((th, i) => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (i === sortColIdx) {
+          th.classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
+        }
+      });
+    }
+
+    // Ordenar tabla al hacer clic en encabezado
+    function sortTabla(colIdx) {
+      if (sortColIdx === colIdx) {
+        sortAsc = !sortAsc;
+      } else {
+        sortColIdx = colIdx;
+        sortAsc = false;
+      }
+      actualizarTabla();
+    }
+
+    // ============================================================
+    // SECCIÓN 4 — GRÁFICA DE BARRAS (registrados por unidad)
+    // ============================================================
+    function iniciarGraficaBarras() {
+      const ctx = document.getElementById('graficaBarras').getContext('2d');
+
+      const datos = obtenerDatosBarras();
+      graficaBarras = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: datos.labels,
+          datasets: [{
+            label: 'Registrados',
+            data: datos.valores,
+            backgroundColor: datos.colores,
+            borderColor: datos.colores.map(c => c + 'CC'),
+            borderWidth: 1,
+            borderRadius: 5,
+          }]
+        },
+        options: {
+          indexAxis: 'y',   // Barras horizontales
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => ' ' + ctx.raw + ' registrados'
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              max: CONFIG_EVENTO.cupoXUnidad,
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#8A9BBF', font: { size: 11 } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#F0F4FF', font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    // Obtiene labels/valores/colores ordenados por registros DESC
+    function obtenerDatosBarras() {
+      const sorted = [...UNIDADES]
+        .map(u => ({ nombre: u.nombre, valor: byUnit[u.id] || 0, color: u.color }))
+        .sort((a, b) => b.valor - a.valor);
+      return {
+        labels:  sorted.map(x => x.nombre),
+        valores: sorted.map(x => x.valor),
+        colores: sorted.map(x => x.color)
+      };
+    }
+
+    function actualizarGraficaBarras() {
+      if (!graficaBarras) { iniciarGraficaBarras(); return; }
+      const datos = obtenerDatosBarras();
+      graficaBarras.data.labels = datos.labels;
+      graficaBarras.data.datasets[0].data = datos.valores;
+      graficaBarras.data.datasets[0].backgroundColor = datos.colores;
+      graficaBarras.data.datasets[0].borderColor = datos.colores.map(c => c + 'CC');
+      graficaBarras.update('active');
+    }
+
+    // ============================================================
+    // SECCIÓN 4 — GRÁFICA DE LÍNEA (llegadas acumuladas)
+    // ============================================================
+    function iniciarGraficaLinea() {
+      const ctx = document.getElementById('graficaLinea').getContext('2d');
+      const { labels, valores } = obtenerDatosLinea();
+
+      graficaLinea = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Acumulado',
+            data: valores,
+            borderColor: '#C9A84C',
+            backgroundColor: 'rgba(201,168,76,0.12)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: valores.length <= 20 ? 4 : 2,
+            pointBackgroundColor: '#C9A84C',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: { duration: 400 },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => ' ' + ctx.raw + ' personas'
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#8A9BBF', font: { size: 10 }, maxRotation: 45 }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#8A9BBF', font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    // Agrupa la timeline en cubetas de 15 minutos
+    function obtenerDatosLinea() {
+      if (timeline.length === 0) {
+        return { labels: ['00:00'], valores: [0] };
+      }
+
+      const INTERVALO_MS = 15 * 60 * 1000; // 15 minutos
+      const inicio = new Date(timeline[0].ts);
+      inicio.setSeconds(0, 0);
+      // Ajustar al bloque de 15 min anterior
+      inicio.setMinutes(Math.floor(inicio.getMinutes() / 15) * 15);
+
+      const fin = new Date();
+      const cubetas = {};
+
+      // Crear todas las cubetas desde inicio hasta ahora
+      let cursor = new Date(inicio);
+      while (cursor <= fin) {
+        const key = formatearHora(cursor);
+        cubetas[key] = 0;
+        cursor = new Date(cursor.getTime() + INTERVALO_MS);
+      }
+
+      // Contar llegadas por cubeta
+      timeline.forEach(punto => {
+        const t = new Date(punto.ts);
+        const bloqueMs = Math.floor((t - inicio) / INTERVALO_MS) * INTERVALO_MS;
+        const bloqueDate = new Date(inicio.getTime() + bloqueMs);
+        const key = formatearHora(bloqueDate);
+        if (cubetas.hasOwnProperty(key)) {
+          cubetas[key]++;
+        }
+      });
+
+      // Calcular acumulados
+      const labels = Object.keys(cubetas);
+      let acum = 0;
+      const valores = labels.map(k => {
+        acum += cubetas[k];
+        return acum;
+      });
+
+      return { labels, valores };
+    }
+
+    function formatearHora(date) {
+      const h = String(date.getHours()).padStart(2, '0');
+      const m = String(date.getMinutes()).padStart(2, '0');
+      return h + ':' + m;
+    }
+
+    function actualizarGraficaLinea() {
+      if (!graficaLinea) { iniciarGraficaLinea(); return; }
+      const { labels, valores } = obtenerDatosLinea();
+      graficaLinea.data.labels = labels;
+      graficaLinea.data.datasets[0].data = valores;
+      graficaLinea.data.datasets[0].pointRadius = valores.length <= 20 ? 4 : 2;
+      graficaLinea.update('active');
+    }
+
+    // ============================================================
+    // SECCIÓN 5 — PODIO TOP 3
+    // ============================================================
+    function actualizarPodio() {
+      const podioGrid = document.getElementById('podioGrid');
+
+      // Calcular porcentaje por unidad
+      const ranking = UNIDADES.map(u => ({
+        nombre: u.nombre,
+        count:  byUnit[u.id] || 0,
+        pct:    u.cupo > 0 ? Math.round(((byUnit[u.id] || 0) / u.cupo) * 100) : 0
+      })).sort((a, b) => b.pct - a.pct || b.count - a.count);
+
+      const top3 = ranking.slice(0, 3);
+      const medallas = ['🥇', '🥈', '🥉'];
+      const clases   = ['podio-1', 'podio-2', 'podio-3'];
+
+      if (top3.every(t => t.count === 0)) {
+        podioGrid.innerHTML = '<div class="podio-empty">Sin registros aún — el podio se actualizará en tiempo real</div>';
+        return;
+      }
+
+      // Orden visual: 2do — 1ro — 3ro (estilo podio real)
+      const orden = top3.length >= 3
+        ? [top3[1], top3[0], top3[2]]
+        : top3;
+      const idxOrden = top3.length >= 3 ? [1, 0, 2] : [0, 1, 2];
+
+      podioGrid.innerHTML = orden.map((u, i) => {
+        const pos = idxOrden[i];
+        return `
+          <div class="podio-card ${clases[pos]}" style="${pos===0?'transform:translateY(-16px)':''}">
+            <span class="podio-medalla">${medallas[pos]}</span>
+            <div class="podio-nombre">${u.nombre}</div>
+            <div class="podio-pct">${u.pct}%</div>
+            <div class="podio-count">${u.count} registrados</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ============================================================
+    // TIEMPO REAL — SUPABASE REALTIME
+    // ============================================================
+    function suscribirRealtime() {
+      if (!db) return;
+
+      realtimeChannel = db.channel('dashboard-live')
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'registros' },
+          (payload) => {
+            // Procesar nuevo registro en tiempo real
+            const unidadId = payload.new?.unidad_id;
+            const ts       = payload.new?.escaneado_en;
+
+            totalRegistrados++;
+
+            if (unidadId && byUnit.hasOwnProperty(unidadId)) {
+              byUnit[unidadId]++;
+            }
+
+            // Agregar a la línea de tiempo
+            if (ts) {
+              timeline.push({ ts: new Date(ts), acumulado: totalRegistrados });
+            }
+
+            // Actualizar toda la interfaz
+            actualizarHero();
+            animarNumero();
+            actualizarBarraGeneral();
+            actualizarTabla(unidadId);      // Flash en la fila afectada
+            actualizarGraficaBarras();
+            actualizarGraficaLinea();
+            actualizarPodio();
+            actualizarTimestamp();
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            setEstadoConexion(true);
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            setEstadoConexion(false);
+          } else if (status === 'CLOSED') {
+            setEstadoConexion(false);
+          }
+        });
+    }
+
+    // ============================================================
+    // POLLING DE RESPALDO (cada 10 segundos)
+    // ============================================================
+    function iniciarPolling() {
+      pollingTimer = setInterval(async () => {
+        await cargarDatosIniciales();
+        renderizarTodo();
+      }, 10000);
+    }
+
+    // ============================================================
+    // ESTADO DE CONEXIÓN
+    // ============================================================
+    function setEstadoConexion(conectado) {
+      const el    = document.getElementById('estadoConexion');
+      const texto = document.getElementById('estadoTexto');
+      if (conectado) {
+        el.classList.remove('desconectado');
+        el.classList.add('conectado');
+        texto.textContent = 'Conectado';
+      } else {
+        el.classList.remove('conectado');
+        el.classList.add('desconectado');
+        texto.textContent = 'Desconectado';
+      }
+    }
+
+    // ============================================================
+    // TIMESTAMP DE ÚLTIMA ACTUALIZACIÓN
+    // ============================================================
+    function actualizarTimestamp() {
+      const el = document.getElementById('ultimaActualizacion');
+      el.textContent = 'Última actualización: ' +
+        new Date().toLocaleTimeString('es-MX');
+    }
+
+    // ============================================================
+    // EXPORTAR CSV
+    // ============================================================
+    async function exportarCSV() {
+      if (!db) {
+        alert('No hay conexión con la base de datos.');
+        return;
+      }
+
+      try {
+        // Obtener registros con boleto y unidad
+        const { data, error } = await db
+          .from('registros')
+          .select('escaneado_en, unidad_id, dispositivo, boleto_id, boletos(codigo)')
+          .order('escaneado_en', { ascending: true });
+
+        if (error) throw error;
+
+        // Construir mapa nombre de unidad
+        const nombreUnidad = {};
+        UNIDADES.forEach(u => { nombreUnidad[u.id] = u.nombre; });
+
+        // Encabezados CSV
+        const filas = [['Código', 'Unidad', 'Hora de Registro', 'Dispositivo']];
+
+        (data || []).forEach(r => {
+          const codigo    = r.boletos?.codigo || r.boleto_id || '';
+          const unidad    = nombreUnidad[r.unidad_id] || r.unidad_id || '';
+          const hora      = r.escaneado_en
+            ? new Date(r.escaneado_en).toLocaleString('es-MX')
+            : '';
+          const disp      = r.dispositivo || '';
+          filas.push([codigo, unidad, hora, disp]);
+        });
+
+        // Generar string CSV
+        const csv = filas.map(fila =>
+          fila.map(celda => '"' + String(celda).replace(/"/g, '""') + '"').join(',')
+        ).join('\n');
+
+        // Descargar archivo
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const fecha = new Date().toISOString().slice(0, 10);
+        a.href     = url;
+        a.download = 'reporte_asistencia_' + fecha + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('Error al exportar CSV:', err);
+        alert('Error al generar el reporte: ' + err.message);
+      }
+    }
+  </script>
+
+</body>
+</html>

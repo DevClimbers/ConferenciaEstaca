@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Escáner QR — Conferencia de Estaca</title>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <!-- Html5Qrcode -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- Configuración del evento -->
+  <script src="config.js"></script>
+
+  <style>
+    /* ============================================================
+       RESET Y BASE
+       ============================================================ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --navy:   #1B2A5E;
+      --gold:   #C9A84C;
+      --green:  #22C55E;
+      --red:    #EF4444;
+      --orange: #F59E0B;
+      --bg:     #0F1A3D;
+      --text:   #F0F0F0;
+      --text-dim: #A0AABF;
+      --border: rgba(201,168,76,0.35);
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ============================================================
+       MODAL DE CONFIGURACIÓN DE DISPOSITIVO
+       ============================================================ */
+    #modalDispositivo {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 2rem;
+    }
+
+    #modalDispositivo.oculto {
+      display: none;
+    }
+
+    .modal-box {
+      background: var(--navy);
+      border: 2px solid var(--gold);
+      border-radius: 1.25rem;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .modal-box h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.75rem;
+    }
+
+    .modal-box p {
+      font-size: 1rem;
+      color: var(--text-dim);
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    .modal-box input[type="text"] {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      font-size: 1.25rem;
+      border-radius: 0.75rem;
+      border: 2px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      text-align: center;
+      outline: none;
+      margin-bottom: 1.5rem;
+      transition: border-color 0.2s;
+    }
+
+    .modal-box input[type="text"]:focus {
+      border-color: var(--gold);
+    }
+
+    .modal-box input[type="text"]::placeholder {
+      color: var(--text-dim);
+    }
+
+    .btn-primary {
+      display: block;
+      width: 100%;
+      padding: 1rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 0.75rem;
+      background: var(--gold);
+      color: var(--navy);
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: opacity 0.15s;
+    }
+
+    .btn-primary:active {
+      opacity: 0.8;
+    }
+
+    /* ============================================================
+       PANTALLA PRINCIPAL DEL ESCÁNER
+       ============================================================ */
+    #appPrincipal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #appPrincipal.oculto {
+      display: none;
+    }
+
+    /* Barra superior */
+    #barraTop {
+      background: var(--navy);
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-shrink: 0;
+      min-height: 52px;
+    }
+
+    #btnInicio {
+      color: var(--gold);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    #btnInicio:active {
+      opacity: 0.7;
+    }
+
+    #nombreDispositivoBtn {
+      background: rgba(201,168,76,0.12);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.3rem 0.65rem;
+      color: var(--gold);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+    }
+
+    #contadorBadge {
+      background: var(--gold);
+      color: var(--navy);
+      border-radius: 999px;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 800;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Indicador offline */
+    #badgeOffline {
+      position: fixed;
+      top: 52px;
+      left: 0;
+      right: 0;
+      background: var(--orange);
+      color: #1a1a1a;
+      text-align: center;
+      padding: 0.35rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      z-index: 800;
+      display: none;
+      letter-spacing: 0.02em;
+    }
+
+    #badgeOffline.visible {
+      display: block;
+    }
+
+    /* Área del escáner */
+    #areaEscaner {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Contenedor del video de html5-qrcode */
+    #reader {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+    }
+
+    /* Ocultamos el UI interno de html5-qrcode (sólo queremos el vídeo) */
+    #reader > * {
+      border: none !important;
+    }
+
+    /* Marco del visor con esquinas animadas */
+    #visorMarco {
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .esquina {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      border-color: var(--gold);
+      border-style: solid;
+    }
+
+    .esquina-tl { top: 0;    left: 0;  border-width: 4px 0 0 4px; border-radius: 6px 0 0 0; }
+    .esquina-tr { top: 0;    right: 0; border-width: 4px 4px 0 0; border-radius: 0 6px 0 0; }
+    .esquina-bl { bottom: 0; left: 0;  border-width: 0 0 4px 4px; border-radius: 0 0 0 6px; }
+    .esquina-br { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-radius: 0 0 6px 0; }
+
+    /* Línea de escaneo animada */
+    .linea-scan {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      animation: scanLine 2s ease-in-out infinite;
+      box-shadow: 0 0 8px var(--gold);
+    }
+
+    @keyframes scanLine {
+      0%   { top: 4px;   opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: calc(100% - 6px); opacity: 0; }
+    }
+
+    /* Pulso de las esquinas */
+    @keyframes pulsoEsquinas {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .esquina {
+      animation: pulsoEsquinas 2s ease-in-out infinite;
+    }
+
+    /* Barra inferior de estado */
+    #barraBottom {
+      background: var(--navy);
+      border-top: 1px solid var(--border);
+      padding: 0.9rem 1rem;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    #textoEstado {
+      font-size: 1rem;
+      color: var(--text-dim);
+      letter-spacing: 0.02em;
+    }
+
+    #contadorDetalle {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-top: 0.2rem;
+    }
+
+    /* ============================================================
+       PANTALLAS DE RESULTADO (overlay a pantalla completa)
+       ============================================================ */
+    .pantalla-resultado {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 500;
+      padding: 2rem;
+      text-align: center;
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .pantalla-resultado.activa {
+      transform: translateY(0);
+    }
+
+    .resultado-icono {
+      font-size: 5rem;
+      line-height: 1;
+      margin-bottom: 1rem;
+      text-shadow: 0 0 40px rgba(255,255,255,0.3);
+    }
+
+    .resultado-titulo {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.75rem;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .resultado-unidad {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      opacity: 0.95;
+    }
+
+    .resultado-detalle {
+      font-size: 1.1rem;
+      opacity: 0.85;
+      margin-bottom: 0.5rem;
+    }
+
+    .resultado-nota {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-top: 0.5rem;
+    }
+
+    /* Barra de cuenta regresiva */
+    .barra-countdown {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 5px;
+      background: rgba(255,255,255,0.5);
+      width: 100%;
+      transform-origin: left;
+    }
+
+    .barra-countdown.animando {
+      animation: countdown var(--duracion, 2s) linear forwards;
+    }
+
+    @keyframes countdown {
+      from { transform: scaleX(1); }
+      to   { transform: scaleX(0); }
+    }
+
+    /* ============================================================
+       TOAST DE SINCRONIZACIÓN
+       ============================================================ */
+    #toastSync {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--navy);
+      border: 1px solid var(--gold);
+      border-radius: 999px;
+      padding: 0.65rem 1.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--gold);
+      z-index: 9000;
+      white-space: nowrap;
+      transition: transform 0.35s cubic-bezier(0.22,1,0.36,1);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    #toastSync.visible {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       MODAL: CONFIGURAR NOMBRE DEL DISPOSITIVO
+       ============================================================ -->
+  <div id="modalDispositivo">
+    <div class="modal-box">
+      <h2>Configurar escáner</h2>
+      <p>Ingresa el nombre de este dispositivo para identificar desde dónde se registran las entradas.<br><br>Ejemplo: <strong>Puerta-1</strong></p>
+      <input
+        type="text"
+        id="inputNombreDispositivo"
+        placeholder="ej: Puerta-1"
+        maxlength="30"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+      />
+      <button class="btn-primary" id="btnGuardarDispositivo">Comenzar</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       APP PRINCIPAL
+       ============================================================ -->
+  <div id="appPrincipal" class="oculto">
+
+    <!-- Barra superior -->
+    <div id="barraTop">
+      <a id="btnInicio" href="index.html">← Inicio</a>
+      <button id="nombreDispositivoBtn" title="Toca para cambiar el nombre"></button>
+      <div id="contadorBadge">0 registrados</div>
+    </div>
+
+    <!-- Indicador de modo offline -->
+    <div id="badgeOffline">⚠ Sin conexión — escaneando en modo local</div>
+
+    <!-- Área principal con cámara -->
+    <div id="areaEscaner">
+      <!-- Html5Qrcode renderiza el video aquí -->
+      <div id="reader"></div>
+
+      <!-- Marco con esquinas animadas superpuesto al video -->
+      <div id="visorMarco">
+        <div class="esquina esquina-tl"></div>
+        <div class="esquina esquina-tr"></div>
+        <div class="esquina esquina-bl"></div>
+        <div class="esquina esquina-br"></div>
+        <div class="linea-scan"></div>
+      </div>
+    </div>
+
+    <!-- Barra inferior -->
+    <div id="barraBottom">
+      <div id="textoEstado">Apunta la cámara al código QR del boleto</div>
+      <div id="contadorDetalle"></div>
+    </div>
+
+  </div>
+
+  <!-- ============================================================
+       PANTALLA: ÉXITO (verde)
+       ============================================================ -->
+  <div id="pantallaExito" class="pantalla-resultado" style="background: #16A34A; color: #fff;">
+    <div class="resultado-icono">✓</div>
+    <div class="resultado-titulo">BIENVENIDO</div>
+    <div class="resultado-unidad" id="exitoUnidad"></div>
+    <div class="resultado-detalle" id="exitoBoleto"></div>
+    <div class="resultado-detalle" id="exitoHora"></div>
+    <div class="resultado-nota" id="exitoNota"></div>
+    <div class="barra-countdown" id="exitoCountdown"></div>
+  </div>
+
+  <!-- ============================================================
+       PANTALLA: DUPLICADO (rojo)
+       ============================================================ -->
+  <div id="pantallaDuplicado" class="pantalla-resultado" style="background: #EF4444; color: #fff;">
+    <div class="resultado-icono">✗</div>
+    <div class="resultado-titulo">YA REGISTRADO</div>
+    <div class="resultado-unidad" id="dupUnidad"></div>
+    <div class="resultado-detalle" id="dupHora"></div>
+    <div class="barra-countdown" id="dupCountdown"></div>
+  </div>
+
+  <!-- ============================================================
+       PANTALLA: INVÁLIDO (naranja)
+       ============================================================ -->
+  <div id="pantallaInvalido" class="pantalla-resultado" style="background: #F59E0B; color: #1a1a1a;">
+    <div class="resultado-icono">⚠</div>
+    <div class="resultado-titulo">CÓDIGO NO VÁLIDO</div>
+    <div class="resultado-detalle" id="invalidoCodigo"></div>
+    <div class="barra-countdown" id="invalidoCountdown"></div>
+  </div>
+
+  <!-- ============================================================
+       TOAST DE SINCRONIZACIÓN OFFLINE
+       ============================================================ -->
+  <div id="toastSync"></div>
+
+
+  <script>
+    /* ============================================================
+       INICIALIZACIÓN DE SUPABASE
+       ============================================================ */
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+    /* ============================================================
+       ESTADO GLOBAL
+       ============================================================ */
+    let dispositivoNombre = '';
+    let totalRegistrados  = 0;
+    let escaneando        = false;  // bandera para evitar procesamiento concurrente
+    let html5QrCode       = null;
+
+    // Set anti-duplicados: códigos escaneados en esta sesión con timestamp
+    const sesionEscaneados = new Map(); // codigo -> timestamp (ms)
+    const DEBOUNCE_MS = 3000; // 3 segundos de espera entre el mismo código
+
+    /* ============================================================
+       HELPERS DE AUDIO (Web Audio API)
+       ============================================================ */
+    function playBeep(frequency = 880, duration = 0.2, type = 'sine') {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = frequency;
+        osc.type = type;
+        gain.gain.value = 0.4;
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {
+        // Silenciar errores de audio en contextos donde no está disponible
+        console.warn('Audio no disponible:', e.message);
+      }
+    }
+
+    /* ============================================================
+       HELPER: OBTENER UNIDAD DESDE CÓDIGO
+       ============================================================ */
+    function getUnidadFromCodigo(codigo) {
+      const id = codigo.split('-')[0]; // ej: 'BAR01'
+      return UNIDADES.find(u => u.id === id) || null;
+    }
+
+    /* ============================================================
+       HELPER: FORMATEAR HORA HH:MM:SS
+       ============================================================ */
+    function formatHora(fechaStr) {
+      const d = new Date(fechaStr);
+      return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    /* ============================================================
+       COUNTER: ACTUALIZAR BADGE Y TEXTO
+       ============================================================ */
+    function updateCounter() {
+      const badge   = document.getElementById('contadorBadge');
+      const detalle = document.getElementById('contadorDetalle');
+      badge.textContent = `${totalRegistrados} registrados`;
+      detalle.textContent = `${totalRegistrados} de ${CONFIG_EVENTO.metaAsistencia} esperados`;
+    }
+
+    /* ============================================================
+       TOAST TEMPORAL
+       ============================================================ */
+    function mostrarToast(mensaje) {
+      const toast = document.getElementById('toastSync');
+      toast.textContent = mensaje;
+      toast.classList.add('visible');
+      setTimeout(() => toast.classList.remove('visible'), 3500);
+    }
+
+    /* ============================================================
+       MODO OFFLINE
+       ============================================================ */
+    const OFFLINE_QUEUE_KEY = 'offlineQueue';
+
+    function getOfflineQueue() {
+      try {
+        return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function saveOfflineQueue(queue) {
+      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    }
+
+    function encolarOffline(registro) {
+      const queue = getOfflineQueue();
+      queue.push(registro);
+      saveOfflineQueue(queue);
+    }
+
+    async function sincronizarOffline() {
+      const queue = getOfflineQueue();
+      if (queue.length === 0) return;
+
+      let sincronizados = 0;
+      const pendientes  = [];
+
+      for (const reg of queue) {
+        try {
+          const { error } = await db.from('registros').insert([reg]);
+          if (!error) {
+            sincronizados++;
+          } else {
+            // Si el error es de duplicado (23505 unique violation) lo descartamos igual
+            if (error.code === '23505') {
+              sincronizados++;
+            } else {
+              pendientes.push(reg);
+            }
+          }
+        } catch {
+          pendientes.push(reg);
+        }
+      }
+
+      saveOfflineQueue(pendientes);
+
+      if (sincronizados > 0) {
+        mostrarToast(`${sincronizados} registro${sincronizados > 1 ? 's' : ''} sincronizado${sincronizados > 1 ? 's' : ''}`);
+      }
+    }
+
+    function actualizarIndicadorOffline() {
+      const badge = document.getElementById('badgeOffline');
+      if (navigator.onLine) {
+        badge.classList.remove('visible');
+      } else {
+        badge.classList.add('visible');
+      }
+    }
+
+    window.addEventListener('online', () => {
+      actualizarIndicadorOffline();
+      sincronizarOffline();
+    });
+
+    window.addEventListener('offline', () => {
+      actualizarIndicadorOffline();
+    });
+
+    /* ============================================================
+       PANTALLAS DE RESULTADO
+       ============================================================ */
+    let timerOcultar = null;
+
+    function ocultarTodasLasPantallas() {
+      document.getElementById('pantallaExito').classList.remove('activa');
+      document.getElementById('pantallaDuplicado').classList.remove('activa');
+      document.getElementById('pantallaInvalido').classList.remove('activa');
+    }
+
+    /**
+     * Muestra una pantalla de resultado y programa su ocultación.
+     * @param {string} idPantalla - ID del elemento
+     * @param {string} idCountdown - ID de la barra de countdown
+     * @param {number} duracionMs - Duración en ms antes de ocultar
+     * @param {Function} callback - Qué hacer después (normalmente reanudar escáner)
+     */
+    function mostrarPantalla(idPantalla, idCountdown, duracionMs, callback) {
+      if (timerOcultar) clearTimeout(timerOcultar);
+      ocultarTodasLasPantallas();
+
+      const pantalla  = document.getElementById(idPantalla);
+      const countdown = document.getElementById(idCountdown);
+
+      // Reiniciar animación del countdown
+      countdown.classList.remove('animando');
+      countdown.style.setProperty('--duracion', `${duracionMs / 1000}s`);
+      // Forzar reflow para reiniciar animación CSS
+      void countdown.offsetWidth;
+      countdown.classList.add('animando');
+
+      pantalla.classList.add('activa');
+
+      timerOcultar = setTimeout(() => {
+        pantalla.classList.remove('activa');
+        escaneando = false;
+        if (typeof callback === 'function') callback();
+      }, duracionMs);
+    }
+
+    /* ============================================================
+       LÓGICA DE ESCANEO — CASO ÉXITO
+       ============================================================ */
+    async function procesarExito(codigo, unidad) {
+      const ahora     = new Date().toISOString();
+      const registro  = {
+        codigo,
+        unidad_id:     unidad.id,
+        escaneado_en:  ahora,
+        dispositivo:   dispositivoNombre
+      };
+
+      let notaOffline = '';
+
+      if (!navigator.onLine) {
+        // Guardar localmente y mostrar éxito con advertencia
+        encolarOffline(registro);
+        notaOffline = '⚠ Sin conexión — guardado localmente';
+      } else {
+        // Insertar en Supabase
+        const { error } = await db.from('registros').insert([registro]);
+        if (error) {
+          console.error('Error al insertar registro:', error);
+          // Aún así guardamos offline como respaldo
+          encolarOffline(registro);
+          notaOffline = '⚠ Error de red — guardado localmente';
+        } else {
+          // El contador se actualiza vía Realtime; también actualizar localmente
+          // por si el canal tarda
+          totalRegistrados++;
+          updateCounter();
+        }
+      }
+
+      // Poblar pantalla de éxito
+      document.getElementById('exitoUnidad').textContent = unidad.nombre;
+      document.getElementById('exitoBoleto').textContent = `Boleto #${codigo.split('-')[1]}`;
+      document.getElementById('exitoHora').textContent   = formatHora(ahora);
+      document.getElementById('exitoNota').textContent   = notaOffline;
+
+      playBeep(880, 0.2, 'sine');
+      mostrarPantalla('pantallaExito', 'exitoCountdown', 2000, null);
+    }
+
+    /* ============================================================
+       LÓGICA DE ESCANEO — CASO DUPLICADO
+       ============================================================ */
+    function procesarDuplicado(codigo, registroExistente, unidad) {
+      const horaRegistro = registroExistente.escaneado_en
+        ? `Registrado a las ${formatHora(registroExistente.escaneado_en)}`
+        : 'Ya fue registrado anteriormente';
+
+      document.getElementById('dupUnidad').textContent = unidad ? unidad.nombre : codigo.split('-')[0];
+      document.getElementById('dupHora').textContent   = horaRegistro;
+
+      playBeep(200, 0.4, 'sawtooth');
+      mostrarPantalla('pantallaDuplicado', 'dupCountdown', 2000, null);
+    }
+
+    /* ============================================================
+       LÓGICA DE ESCANEO — CASO INVÁLIDO
+       ============================================================ */
+    function procesarInvalido(codigo) {
+      document.getElementById('invalidoCodigo').textContent = codigo;
+
+      playBeep(440, 0.15, 'square');
+      mostrarPantalla('pantallaInvalido', 'invalidoCountdown', 1500, null);
+    }
+
+    /* ============================================================
+       CALLBACK PRINCIPAL DEL ESCÁNER
+       ============================================================ */
+    async function onScanSuccess(decodedText) {
+      // Ignorar si ya estamos procesando
+      if (escaneando) return;
+
+      const codigo = decodedText.trim().toUpperCase();
+
+      // Anti-duplicado de sesión: ignorar si el mismo código llegó hace menos de 3s
+      const ahora = Date.now();
+      if (sesionEscaneados.has(codigo)) {
+        const ultimaVez = sesionEscaneados.get(codigo);
+        if (ahora - ultimaVez < DEBOUNCE_MS) {
+          return; // Silenciar — segunda lectura demasiado rápida
+        }
+      }
+      sesionEscaneados.set(codigo, ahora);
+
+      // Marcar que estamos procesando para no procesar otro código
+      escaneando = true;
+
+      // PASO 1: Validar formato básico
+      const formatoValido = /^[A-Z]{3}\d{2}-\d{4}$/.test(codigo);
+      if (!formatoValido) {
+        procesarInvalido(decodedText.trim());
+        return;
+      }
+
+      // PASO 2 Y 3: Consultar Supabase (boleto existe + ya registrado)
+      try {
+        const [{ data: boleto, error: errBoleto }, { data: registros, error: errRegistro }] =
+          await Promise.all([
+            db.from('boletos').select('codigo').eq('codigo', codigo).maybeSingle(),
+            db.from('registros').select('escaneado_en').eq('codigo', codigo).maybeSingle()
+          ]);
+
+        if (errBoleto || errRegistro) {
+          console.error('Error consultando Supabase:', errBoleto || errRegistro);
+          // Si no podemos verificar, tratar como inválido para no registrar algo incorrecto
+          // a menos que estemos offline, en cuyo caso asumimos válido
+          if (!navigator.onLine) {
+            const unidad = getUnidadFromCodigo(codigo);
+            if (unidad) {
+              await procesarExito(codigo, unidad);
+            } else {
+              procesarInvalido(codigo);
+            }
+          } else {
+            procesarInvalido(codigo);
+          }
+          return;
+        }
+
+        // Caso 3: Boleto no existe en la base de datos
+        if (!boleto) {
+          procesarInvalido(codigo);
+          return;
+        }
+
+        const unidad = getUnidadFromCodigo(codigo);
+
+        // Caso 2: Ya registrado
+        if (registros) {
+          procesarDuplicado(codigo, registros, unidad);
+          return;
+        }
+
+        // Caso 1: Válido y no registrado
+        await procesarExito(codigo, unidad);
+
+      } catch (err) {
+        console.error('Error inesperado al procesar escaneo:', err);
+        escaneando = false;
+      }
+    }
+
+    function onScanFailure(/* error */) {
+      // Silencioso — ocurre continuamente cuando no hay QR en el encuadre
+    }
+
+    /* ============================================================
+       INICIAR ESCÁNER
+       ============================================================ */
+    function iniciarScanner() {
+      html5QrCode = new Html5Qrcode('reader');
+
+      html5QrCode.start(
+        { facingMode: 'environment' },
+        { fps: 15, qrbox: { width: 250, height: 250 } },
+        onScanSuccess,
+        onScanFailure
+      ).catch(err => {
+        console.error('No se pudo iniciar la cámara:', err);
+        document.getElementById('textoEstado').textContent =
+          'Error: no se pudo acceder a la cámara. Verifica los permisos.';
+      });
+    }
+
+    /* ============================================================
+       CARGAR CONTADOR INICIAL DESDE SUPABASE
+       ============================================================ */
+    async function cargarContadorInicial() {
+      try {
+        const { count, error } = await db
+          .from('registros')
+          .select('*', { count: 'exact', head: true });
+
+        if (!error && count !== null) {
+          totalRegistrados = count;
+          updateCounter();
+        }
+      } catch (e) {
+        console.warn('No se pudo cargar el contador inicial:', e.message);
+      }
+    }
+
+    /* ============================================================
+       SUSCRIPCIÓN REALTIME
+       ============================================================ */
+    function suscribirRealtime() {
+      db.channel('registros-live')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'registros' },
+          () => {
+            totalRegistrados++;
+            updateCounter();
+          }
+        )
+        .subscribe();
+    }
+
+    /* ============================================================
+       CONFIGURACIÓN DEL NOMBRE DE DISPOSITIVO
+       ============================================================ */
+    function guardarNombreDispositivo() {
+      const input = document.getElementById('inputNombreDispositivo');
+      const nombre = input.value.trim();
+      if (!nombre) {
+        input.focus();
+        input.style.borderColor = '#EF4444';
+        return;
+      }
+      input.style.borderColor = '';
+      dispositivoNombre = nombre;
+      localStorage.setItem('dispositivoNombre', nombre);
+      lanzarApp();
+    }
+
+    function lanzarApp() {
+      // Ocultar modal, mostrar app
+      document.getElementById('modalDispositivo').classList.add('oculto');
+      document.getElementById('appPrincipal').classList.remove('oculto');
+
+      // Mostrar nombre en barra
+      document.getElementById('nombreDispositivoBtn').textContent = dispositivoNombre;
+
+      // Estado offline inicial
+      actualizarIndicadorOffline();
+
+      // Sincronizar cola offline si había pendientes
+      if (navigator.onLine) sincronizarOffline();
+
+      // Cargar contador y suscribirse a realtime
+      cargarContadorInicial();
+      suscribirRealtime();
+
+      // Iniciar escáner
+      iniciarScanner();
+    }
+
+    /* ============================================================
+       INICIALIZACIÓN
+       ============================================================ */
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // Botón guardar dispositivo
+      document.getElementById('btnGuardarDispositivo').addEventListener('click', guardarNombreDispositivo);
+
+      // Permitir Enter en el input para confirmar
+      document.getElementById('inputNombreDispositivo').addEventListener('keydown', e => {
+        if (e.key === 'Enter') guardarNombreDispositivo();
+      });
+
+      // Botón tappable del nombre de dispositivo (para cambiarlo)
+      document.getElementById('nombreDispositivoBtn').addEventListener('click', () => {
+        const nuevo = prompt('Nuevo nombre para este dispositivo:', dispositivoNombre);
+        if (nuevo && nuevo.trim()) {
+          dispositivoNombre = nuevo.trim();
+          localStorage.setItem('dispositivoNombre', dispositivoNombre);
+          document.getElementById('nombreDispositivoBtn').textContent = dispositivoNombre;
+        }
+      });
+
+      // Revisar si ya hay nombre guardado
+      const nombreGuardado = localStorage.getItem('dispositivoNombre');
+      if (nombreGuardado) {
+        dispositivoNombre = nombreGuardado;
+        lanzarApp();
+      }
+      // Si no hay nombre, el modal de configuración ya está visible por defecto
+    });
+  </script>
+</body>
+</html>

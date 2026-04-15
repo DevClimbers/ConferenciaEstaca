@@ -372,6 +372,9 @@
         <button class="btn btn-outline" id="btnExportarCSV">
           📥 Exportar CSV completo
         </button>
+        <button class="btn btn-outline" id="btnLimpiarDatos" onclick="limpiarDatosPrueba()" style="color:#c0392b; border-color:#c0392b;" title="Elimina todos los registros y boletos (solo para reset antes del evento real)">
+          🗑️ Limpiar datos de prueba
+        </button>
         <button class="btn btn-outline btn-sm" id="btnRefresh" title="Actualizar datos">
           🔄 Actualizar
         </button>
@@ -902,7 +905,7 @@
       const gapY     = 5;    // espacio vertical entre boletos
 
       const boletoW = (pageW - (marginX * 2) - (gapX * (cols - 1))) / cols; // ~90mm
-      const boletoH = 60; // mm
+      const boletoH = 75; // mm
 
       let paginaActual = 0;
       const boletosPerPage = cols * rows;
@@ -991,7 +994,7 @@
 
     // ── Texto en el área blanca ──
     const textX = x + 4;
-    const qrSize = 22; // mm
+    const qrSize = 24; // mm
     const qrX    = x + w - qrSize - 4;
     const textMaxW = w - qrSize - 12;
 
@@ -1011,8 +1014,14 @@
       { maxWidth: textMaxW }
     );
 
+    // Hora
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(90, 97, 128);
+    doc.text(CONFIG_EVENTO.hora, textX, contentY + 16);
+
     // Barra de color con nombre de unidad
-    const barY = contentY + 15;
+    const barY = contentY + 21;
     const barH = 6;
     doc.setFillColor(...uRGB);
     doc.roundedRect(textX - 1, barY, textMaxW + 2, barH, 1, 1, 'F');
@@ -1026,13 +1035,30 @@
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...navy);
-    doc.text(`Boleto #${numCode}`, textX, contentY + 31);
+    doc.text(`Boleto #${numCode}`, textX, contentY + 37);
 
     // Código completo (pequeño)
     doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(90, 97, 128);
-    doc.text(codigo, textX, contentY + 36);
+    doc.text(codigo, textX, contentY + 42);
+
+    // ── Separador ──
+    doc.setDrawColor(200, 200, 210);
+    doc.setLineWidth(0.3);
+    doc.line(x + 4, contentY + 47, x + w - 4, contentY + 47);
+
+    // ── Familia: ___________ ──
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...navy);
+    const labelFamilia = 'Familia:';
+    const labelW = doc.getTextWidth(labelFamilia);
+    const familiaX = x + (w / 2) - 22; // ligeramente hacia la izquierda del centro
+    doc.text(labelFamilia, familiaX, contentY + 57);
+    doc.setDrawColor(...navy);
+    doc.setLineWidth(0.5);
+    doc.line(familiaX + labelW + 2, contentY + 57.5, familiaX + labelW + 46, contentY + 57.5);
 
     // ── QR Code ──
     if (qrDataUrl) {
@@ -1124,7 +1150,7 @@
       const qrDataUrl = await generarQRDataURL(codigo);
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      dibujarBoleto(doc, 15, 15, 90, 60, codigo, u, qrDataUrl);
+      dibujarBoleto(doc, 15, 15, 90, 75, codigo, u, qrDataUrl);
       doc.save(`boleto-prueba-${u.id}.pdf`);
 
       showToast(`PDF descargado. Código para escanear: ${codigo}`, 'success');
@@ -1214,6 +1240,48 @@
       btn.innerHTML = textoOriginal;
     }
   });
+
+  // ============================================================
+  // LIMPIAR DATOS DE PRUEBA
+  // ============================================================
+  async function limpiarDatosPrueba() {
+    const confirmado = confirm(
+      '⚠️ ATENCIÓN\n\nEsto eliminará TODOS los registros y boletos de Supabase.\n\n' +
+      'Úsalo solo para limpiar datos de prueba antes de comenzar el evento real.\n\n' +
+      '¿Continuar?'
+    );
+    if (!confirmado) return;
+
+    const btn = document.getElementById('btnLimpiarDatos');
+    const textoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Limpiando…';
+
+    try {
+      // Borrar registros primero (tiene FK hacia boletos)
+      const { error: errR } = await db
+        .from('registros')
+        .delete()
+        .not('id', 'is', null);
+      if (errR) throw errR;
+
+      // Borrar boletos
+      const { error: errB } = await db
+        .from('boletos')
+        .delete()
+        .not('codigo', 'is', null);
+      if (errB) throw errB;
+
+      showToast('Datos eliminados. El sistema está en ceros.', 'success');
+      await cargarDatos();
+    } catch (err) {
+      console.error('Error al limpiar datos:', err);
+      showToast('Error al limpiar: ' + (err.message || err), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = textoOriginal;
+    }
+  }
 
   // ============================================================
   // BOTÓN ACTUALIZAR
